@@ -1,65 +1,215 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect, useCallback } from 'react';
+import { Player } from '@/lib/types';
+import SearchBar from '@/components/SearchBar';
+import DivisionFilter from '@/components/DivisionFilter';
+import Leaderboard from '@/components/Leaderboard';
+import LoadingSpinner from '@/components/LoadingSpinner';
+
+export default function HomePage() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
+  const [division, setDivision] = useState('');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  const formatThaiDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('th-TH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    }) + ' น.';
+  };
+
+  const fetchPlayers = useCallback(async (div: string) => {
+    setLoading(true);
+    try {
+      const url = div ? `/api/players?division=${div}` : '/api/players';
+      const res = await fetch(url);
+      const json = await res.json();
+      const playerList = json.data || [];
+      setPlayers(playerList);
+      setFilteredPlayers(playerList);
+      
+      if (json.lastUpdated) {
+        setLastUpdated(formatThaiDateTime(json.lastUpdated));
+      } else {
+        setLastUpdated(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch players:', err);
+      setPlayers([]);
+      setFilteredPlayers([]);
+      setLastUpdated(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch on mount and when division changes
+  useEffect(() => {
+    fetchPlayers(division);
+  }, [division, fetchPlayers]);
+
+  // Local search filter
+  useEffect(() => {
+    if (!search.trim()) {
+      setFilteredPlayers(players);
+    } else {
+      const query = search.toLowerCase();
+      setFilteredPlayers(
+        players.filter((p) => p.player_name.toLowerCase().includes(query))
+      );
+    }
+  }, [search, players]);
+
+  const handleDivisionChange = (value: string) => {
+    setDivision(value);
+    setSearch('');
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 relative">
+      {/* Admin Gateway Link */}
+      <div className="absolute right-4 top-4 z-20 animate-slide-up">
+        <a
+          href="/admin"
+          className="glass-card flex items-center gap-1.5 px-4 py-2 text-xs font-bold tracking-wider text-accent-gold border border-accent-gold/20 rounded-xl hover:border-accent-gold/50 hover:bg-accent-gold/5 transition-all hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.05)]"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          เข้าสู่ระบบแอดมิน
+        </a>
+      </div>
+
+      {/* Hero Section */}
+      <header className="mb-12 text-center animate-slide-up relative z-10">
+        {/* Decorative traditional top divider */}
+        <div className="mx-auto mb-6 h-[2px] w-48 bg-gradient-to-r from-transparent via-accent-gold to-transparent" />
+
+        <p className="text-xs font-semibold tracking-[0.25em] text-accent-gold uppercase mb-2 animate-pulse-glow">
+          ทำเนียบกำลังรบราชวัลลภ
+        </p>
+        <h1 className="mb-3 text-4xl font-black tracking-wider md:text-6xl text-shadow-md">
+          <span className="bg-gradient-to-r from-accent-gold via-accent-gold-glowing to-accent-gold bg-clip-text text-transparent filter drop-shadow-[0_2px_8px_rgba(212,175,55,0.4)]">
+            กรมทหารราชวัลลภ
+          </span>
+        </h1>
+        <p className="mx-auto max-w-xl text-text-secondary text-sm md:text-base">
+          กรมทหารมหาดเล็กราชวัลลภรักษาพระองค์
+        </p>
+
+        {/* Display Last Updated Time if available */}
+        {lastUpdated && (
+          <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-text-secondary font-mono bg-white/5 border border-white/5 rounded-full px-3.5 py-1.5 w-fit mx-auto shadow-[0_0_10px_rgba(255,255,255,0.02)]">
+            <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse-glow" />
+            <span>อัปเดตแต้มล่าสุดเมื่อ: {lastUpdated}</span>
+          </div>
+        )}
+
+        {/* Decorative bottom line */}
+        <div className="mx-auto mt-6 h-[1px] w-72 bg-gradient-to-r from-transparent via-accent-crimson to-transparent" />
+      </header>
+
+      {/* Stats Bar */}
+      <div className="mb-10 flex flex-wrap items-center justify-center gap-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <div className="glass-card flex items-center gap-3 px-5 py-3 border-l-4 border-l-accent-gold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-gold/15">
+            <svg className="h-4 w-4 text-accent-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">ทหารรักษาพระองค์</p>
+            <p className="font-mono text-lg font-bold text-accent-gold">
+              {filteredPlayers.length.toLocaleString()} นาย
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {division && (
+          <div className="glass-card flex items-center gap-3 px-5 py-3 border-l-4 border-l-accent-crimson">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-crimson/15">
+              <svg className="h-4 w-4 text-accent-crimson" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">สังกัดกรมกอง</p>
+              <p className="font-mono text-sm font-bold text-accent-crimson truncate max-w-[200px]">
+                {division}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {search && (
+          <div className="glass-card flex items-center gap-3 px-5 py-3 border-l-4 border-l-white/20">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5">
+              <svg className="h-4 w-4 text-text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">ค้นหาค้นรบ</p>
+              <p className="font-mono text-xs font-bold text-text-primary">&quot;{search}&quot;</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Filters Section */}
+      <div className="mb-6 space-y-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <div className="flex flex-col gap-4 md:flex-row">
+          <SearchBar value={search} onChange={setSearch} />
         </div>
-      </main>
-    </div>
+        <DivisionFilter value={division} onChange={handleDivisionChange} />
+      </div>
+
+      {/* Leaderboard */}
+      <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
+        {loading ? <LoadingSpinner /> : <Leaderboard players={filteredPlayers} isSortedByScore={!division} />}
+      </div>
+
+      {/* Footer */}
+      <footer className="mt-16 text-center text-text-secondary/40 text-xs py-8 relative z-10">
+        <div className="mx-auto mb-6 h-[1px] w-32 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <p className="tracking-widest">
+          xXShinmuXx Developer
+        </p>
+      </footer>
+
+      {/* Floating Scroll to Top / Bottom Buttons */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 animate-slide-up">
+        {/* Scroll to Top */}
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          title="เลื่อนขึ้นบนสุด"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-accent-gold/30 bg-[#0c0c1e]/80 text-accent-gold backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-accent-gold hover:bg-accent-gold/15 hover:shadow-[0_0_15px_rgba(212,175,55,0.3)] cursor-pointer"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+
+        {/* Scroll to Bottom */}
+        <button
+          onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })}
+          title="เลื่อนลงล่างสุด"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-accent-gold/30 bg-[#0c0c1e]/80 text-accent-gold backdrop-blur-md transition-all duration-300 hover:scale-110 hover:border-accent-gold hover:bg-accent-gold/15 hover:shadow-[0_0_15px_rgba(212,175,55,0.3)] cursor-pointer"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+    </main>
   );
 }

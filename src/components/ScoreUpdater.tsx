@@ -1,0 +1,280 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Player } from '@/lib/types';
+
+interface ScoreUpdaterProps {
+  player: Player | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdate: () => void;
+}
+
+export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: ScoreUpdaterProps) {
+  const [newScore, setNewScore] = useState('');
+  const [newPosition, setNewPosition] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  useEffect(() => {
+    if (player) {
+      setNewScore(String(player.total_score));
+      setNewPosition(player.position || '');
+      setFeedback(null);
+    }
+  }, [player]);
+
+  if (!isOpen || !player) return null;
+
+  const handleAutoCalculatePosition = () => {
+    const score = Number(newScore) || 0;
+    
+    // Preserve special leader titles if already assigned to avoid overwriting them
+    if (
+      player.position?.startsWith('ปลัดราชวัลลภ') ||
+      player.position === 'พระยามหาเสือ' ||
+      player.position === 'พระยาอัครอารักษ์' ||
+      player.position === 'พระยาอาทมาตราชภักดี'
+    ) {
+      setNewPosition(player.position);
+      return;
+    }
+
+    // Special divisions assignment
+    if (player.division === 'กองทัพมหาเสือพิทักษ์') {
+      setNewPosition('ทหารเสือประจำพระองค์');
+      return;
+    }
+    if (player.division === 'กองทัพธรณินพิทักษ์') {
+      setNewPosition('ทหารธรณินพิทักษ์');
+      return;
+    }
+    if (player.division === 'กองทัพอาทมาต') {
+      setNewPosition('หมื่นอาทมาต');
+      return;
+    }
+    
+    // Score based rank assignment (excluding ครูฝึก)
+    if (score >= 600) {
+      setNewPosition('นายพันเวร | Battalion Commander of Guardsmen');
+    } else if (score >= 315) {
+      setNewPosition('นายกองเวร | Company Head Guardsmen');
+    } else if (score >= 210) {
+      setNewPosition('นายหมวดเวร | Platoon Head Guardsmen');
+    } else if (score >= 110) {
+      setNewPosition('นายหมู่เวร | Squad Head Guardsmen');
+    } else if (score >= 60) {
+      setNewPosition('พลทหารยามอาวุโส | Senior Guardsmen');
+    } else if (score >= 45) {
+      setNewPosition('พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen');
+    } else if (score >= 20) {
+      setNewPosition('พลทหารยาม | Guardsmen');
+    } else {
+      setNewPosition('พลอาสาสมัครทหารยาม | Junior Guardsmen');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const res = await fetch(`/api/players/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          total_score: Number(newScore),
+          position: newPosition.trim() || null,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Update failed');
+      }
+
+      setFeedback({ type: 'success', message: 'อัปเดตข้อมูลผู้เล่นสำเร็จ!' });
+      setTimeout(() => {
+        onUpdate();
+        onClose();
+      }, 1000);
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการอัปเดต',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้เล่น "${player.player_name}" ออกจากทำเนียบรบ? การดำเนินการนี้ไม่สามารถย้อนกลับได้`)) {
+      setIsDeleting(true);
+      setFeedback(null);
+
+      try {
+        const res = await fetch(`/api/players/${player.id}`, {
+          method: 'DELETE',
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Delete failed');
+        }
+
+        setFeedback({ type: 'success', message: 'ลบชื่อผู้เล่นออกจากระบบแล้ว!' });
+        setTimeout(() => {
+          onUpdate();
+          onClose();
+        }, 1000);
+      } catch (err) {
+        setFeedback({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบผู้เล่น',
+        });
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      onClick={handleBackdropClick}
+    >
+      <div className="modal-content glass-card glow-royal w-full max-w-md p-6 border-accent-gold/30">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-accent-gold">แก้ไขและจัดการผู้เล่น</h3>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5
+              text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary cursor-pointer"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Player Info Card */}
+        <div className="mb-6 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+          <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">ผู้เล่น</p>
+          <p className="text-lg font-semibold text-text-primary">{player.player_name}</p>
+          <div className="mt-1 flex items-center gap-3 text-xs text-text-secondary">
+            <span className="font-semibold text-accent-gold">{player.division}</span>
+            <span>•</span>
+            <span>ยศดั้งเดิม: {player.position || 'ไม่มีตำแหน่ง'}</span>
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Score Input */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              คะแนนแต้มการทำงาน
+            </label>
+            <input
+              type="number"
+              value={newScore}
+              onChange={(e) => setNewScore(e.target.value)}
+              className="glass-card w-full px-4 py-2.5 font-mono text-base text-text-primary
+                outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
+                focus:border-accent-gold/40 focus:shadow-[0_0_15px_rgba(212,175,55,0.08)]"
+              required
+            />
+          </div>
+
+          {/* Position Input */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                ยศ / ตำแหน่ง
+              </label>
+              <button
+                type="button"
+                onClick={handleAutoCalculatePosition}
+                className="text-[10px] font-bold text-accent-gold hover:underline cursor-pointer"
+              >
+                ⚡ คำนวณยศตามแต้มอัตโนมัติ
+              </button>
+            </div>
+            <input
+              type="text"
+              value={newPosition}
+              onChange={(e) => setNewPosition(e.target.value)}
+              placeholder="เช่น นายพันเวร, พลทหารยาม..."
+              className="glass-card w-full px-4 py-2.5 text-sm text-text-primary
+                outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
+                focus:border-accent-gold/40 focus:shadow-[0_0_15px_rgba(212,175,55,0.08)]"
+            />
+          </div>
+
+          {/* Feedback Messages */}
+          {feedback && (
+            <div
+              className={`rounded-xl border p-3 text-sm ${
+                feedback.type === 'success'
+                  ? 'border-green-500/20 bg-green-500/10 text-green-400'
+                  : 'border-red-500/20 bg-red-500/10 text-red-400'
+              }`}
+            >
+              {feedback.message}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-2 pt-2">
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold
+                  text-text-secondary transition-all hover:bg-white/5 hover:text-text-primary cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || isDeleting}
+                className="flex-1 rounded-xl bg-gradient-to-r from-accent-gold to-accent-gold-glowing
+                  px-4 py-3 text-sm font-bold text-bg-primary transition-all duration-300
+                  hover:shadow-[0_0_20px_rgba(212,175,55,0.25)] cursor-pointer
+                  disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSubmitting ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}
+              </button>
+            </div>
+
+            {/* Danger Zone: Delete Player */}
+            <div className="border-t border-white/5 mt-2 pt-3">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isSubmitting || isDeleting}
+                className="w-full rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2.5
+                  text-xs font-bold text-red-400 transition-all duration-300
+                  hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? 'กำลังลบชื่อ...' : '⚠️ ลบชื่อผู้เล่นคนนี้ออกจากระบบ'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
