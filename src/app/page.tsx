@@ -15,6 +15,24 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
+  // Slideshow banner setup
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const slideImages = [
+    '/banner1.png',
+    '/banner2.png',
+    '/banner3.png',
+    '/banner4.png',
+    '/banner5.png'
+  ];
+
+  // Auto-slide effect every 2 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slideImages.length);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [slideImages.length]);
+
   const formatThaiDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleString('th-TH', {
@@ -90,10 +108,7 @@ export default function HomePage() {
       </div>
 
       {/* Hero Section */}
-      <header className="mb-12 text-center animate-slide-up relative z-10">
-        {/* Decorative traditional top divider */}
-        <div className="mx-auto mb-6 h-[2px] w-48 bg-gradient-to-r from-transparent via-accent-gold to-transparent" />
-
+      <header className="mb-2 text-center animate-slide-up relative z-10">
         <p className="text-xs font-semibold tracking-[0.25em] text-accent-gold uppercase mb-2 animate-pulse-glow">
           ทำเนียบกำลังรบราชวัลลภ
         </p>
@@ -102,20 +117,32 @@ export default function HomePage() {
             กรมทหารราชวัลลภ
           </span>
         </h1>
-        <p className="mx-auto max-w-xl text-text-secondary text-sm md:text-base">
+        <p className="mx-auto max-w-xl text-text-secondary text-sm md:text-base mb-6">
           กรมทหารมหาดเล็กราชวัลลภรักษาพระองค์
         </p>
 
         {/* Display Last Updated Time if available */}
         {lastUpdated && (
-          <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-text-secondary font-mono bg-white/5 border border-white/5 rounded-full px-3.5 py-1.5 w-fit mx-auto shadow-[0_0_10px_rgba(255,255,255,0.02)]">
+          <div className="mb-8 flex items-center justify-center gap-2 text-[11px] text-text-secondary font-mono bg-white/5 border border-white/5 rounded-full px-3.5 py-1.5 w-fit mx-auto shadow-[0_0_10px_rgba(255,255,255,0.02)]">
             <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse-glow" />
             <span>อัปเดตแต้มล่าสุดเมื่อ: {lastUpdated}</span>
           </div>
         )}
 
-        {/* Decorative bottom line */}
-        <div className="mx-auto mt-6 h-[1px] w-72 bg-gradient-to-r from-transparent via-accent-crimson to-transparent" />
+        {/* Hero Mini Banner with Slideshow only */}
+        <div className="mb-1 overflow-hidden rounded-2xl border border-accent-gold/20 bg-black/40 relative h-48 sm:h-72 md:h-[450px] shadow-[0_0_25px_rgba(212,175,55,0.08)]">
+          {/* Background Slideshow Images */}
+          {slideImages.map((src, index) => (
+            <div 
+              key={src}
+              className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out"
+              style={{ 
+                backgroundImage: `url("${src}")`,
+                opacity: currentSlide === index ? 1 : 0 
+              }}
+            />
+          ))}
+        </div>
       </header>
 
       {/* Stats Bar */}
