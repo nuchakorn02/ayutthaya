@@ -108,9 +108,9 @@ export default function HomePage() {
       </div>
 
       {/* Hero Section */}
-      <header className="mb-2 text-center animate-slide-up relative z-10 flex flex-col items-center">
+      <header className="mb-2 text-center animate-slide-up relative z-10">
         {/* Logo Emblem Image */}
-        <div className="mb-4 relative">
+        <div className="inline-block mb-4 relative">
           <img 
             src="/logo.png" 
             alt="ตราสัญลักษณ์ กรมทหารราชวัลลภ" 
@@ -120,9 +120,11 @@ export default function HomePage() {
           <div className="absolute inset-0 m-auto h-20 w-20 bg-accent-gold/25 blur-2xl rounded-full -z-10 animate-pulse-glow" />
         </div>
 
-        <p className="text-xs font-semibold tracking-[0.25em] text-accent-gold uppercase mb-2 animate-pulse-glow">
-          ทำเนียบกำลังรบราชวัลลภ
-        </p>
+        <h1 className="mb-3 text-3xl font-black tracking-wider md:text-5xl text-shadow-md">
+          <span className="bg-gradient-to-r from-accent-gold via-accent-gold-glowing to-accent-gold bg-clip-text text-transparent filter drop-shadow-[0_2px_8px_rgba(212,175,55,0.4)] animate-pulse-glow">
+            กรมทหารราชวัลลภ
+          </span>
+        </h1>
         <p className="mx-auto max-w-xl text-text-secondary text-sm md:text-base mb-6">
           กรมทหารมหาดเล็กราชวัลลภรักษาพระองค์
         </p>
@@ -136,7 +138,7 @@ export default function HomePage() {
         )}
 
         {/* Hero Mini Banner with Slideshow only */}
-        <div className="mb-1 overflow-hidden rounded-2xl border border-accent-gold/20 bg-black/40 relative h-48 sm:h-72 md:h-[450px] shadow-[0_0_25px_rgba(212,175,55,0.08)]">
+        <div className="w-full mb-1 overflow-hidden rounded-2xl border border-accent-gold/20 bg-black/40 relative h-48 sm:h-72 md:h-[450px] shadow-[0_0_25px_rgba(212,175,55,0.08)]">
           {/* Background Slideshow Images */}
           {slideImages.map((src, index) => (
             <div 
