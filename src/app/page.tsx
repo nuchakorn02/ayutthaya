@@ -108,15 +108,21 @@ export default function HomePage() {
       </div>
 
       {/* Hero Section */}
-      <header className="mb-2 text-center animate-slide-up relative z-10">
+      <header className="mb-2 text-center animate-slide-up relative z-10 flex flex-col items-center">
+        {/* Logo Emblem Image */}
+        <div className="mb-4 relative">
+          <img 
+            src="/logo.png" 
+            alt="ตราสัญลักษณ์ กรมทหารราชวัลลภ" 
+            className="h-28 w-28 md:h-36 md:w-36 object-contain rounded-full border border-accent-gold/30 shadow-[0_0_20px_rgba(212,175,55,0.25)] hover:scale-105 transition-transform duration-300 relative z-10"
+          />
+          {/* Subtle golden background glow */}
+          <div className="absolute inset-0 m-auto h-20 w-20 bg-accent-gold/25 blur-2xl rounded-full -z-10 animate-pulse-glow" />
+        </div>
+
         <p className="text-xs font-semibold tracking-[0.25em] text-accent-gold uppercase mb-2 animate-pulse-glow">
           ทำเนียบกำลังรบราชวัลลภ
         </p>
-        <h1 className="mb-3 text-4xl font-black tracking-wider md:text-6xl text-shadow-md">
-          <span className="bg-gradient-to-r from-accent-gold via-accent-gold-glowing to-accent-gold bg-clip-text text-transparent filter drop-shadow-[0_2px_8px_rgba(212,175,55,0.4)]">
-            กรมทหารราชวัลลภ
-          </span>
-        </h1>
         <p className="mx-auto max-w-xl text-text-secondary text-sm md:text-base mb-6">
           กรมทหารมหาดเล็กราชวัลลภรักษาพระองค์
         </p>
