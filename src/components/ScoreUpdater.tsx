@@ -30,12 +30,13 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
   const handleAutoCalculatePosition = () => {
     const score = Number(newScore) || 0;
     
-    // Preserve special leader titles if already assigned to avoid overwriting them
+    // Preserve special leader and instructor titles if already assigned to avoid overwriting them
     if (
       player.position?.startsWith('ปลัดราชวัลลภ') ||
       player.position === 'พระยามหาเสือ' ||
       player.position === 'พระยาอัครอารักษ์' ||
-      player.position === 'พระยาอาทมาตราชภักดี'
+      player.position === 'พระยาอาทมาตราชภักดี' ||
+      player.position?.startsWith('ครูฝึก')
     ) {
       setNewPosition(player.position);
       return;
@@ -54,24 +55,26 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
       setNewPosition('หมื่นอาทมาต');
       return;
     }
+
+    const isPolice = player.division === 'กองพระตำรวจหลวง';
     
     // Score based rank assignment (excluding ครูฝึก)
     if (score >= 600) {
-      setNewPosition('นายพันเวร | Battalion Commander of Guardsmen');
+      setNewPosition(isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen');
     } else if (score >= 315) {
-      setNewPosition('นายกองเวร | Company Head Guardsmen');
+      setNewPosition(isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen');
     } else if (score >= 210) {
-      setNewPosition('นายหมวดเวร | Platoon Head Guardsmen');
+      setNewPosition(isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen');
     } else if (score >= 110) {
-      setNewPosition('นายหมู่เวร | Squad Head Guardsmen');
+      setNewPosition(isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen');
     } else if (score >= 60) {
-      setNewPosition('พลทหารยามอาวุโส | Senior Guardsmen');
+      setNewPosition(isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen');
     } else if (score >= 45) {
-      setNewPosition('พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen');
+      setNewPosition(isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen');
     } else if (score >= 20) {
-      setNewPosition('พลทหารยาม | Guardsmen');
+      setNewPosition(isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen');
     } else {
-      setNewPosition('พลอาสาสมัครทหารยาม | Junior Guardsmen');
+      setNewPosition(isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen');
     }
   };
 

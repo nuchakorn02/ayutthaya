@@ -34,14 +34,34 @@ function calculateDefaultPosition(score: number, division: string): string {
     return 'หมื่นอาทมาต';
   }
 
-  if (score >= 600) return 'นายพันเวร | Battalion Commander of Guardsmen';
-  if (score >= 315) return 'นายกองเวร | Company Head Guardsmen';
-  if (score >= 210) return 'นายหมวดเวร | Platoon Head Guardsmen';
-  if (score >= 110) return 'นายหมู่เวร | Squad Head Guardsmen';
-  if (score >= 60) return 'พลทหารยามอาวุโส | Senior Guardsmen';
-  if (score >= 45) return 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen';
-  if (score >= 20) return 'พลทหารยาม | Guardsmen';
-  return 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
+  const isPolice = division === 'กองพระตำรวจหลวง';
+
+  if (score >= 600) return isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen';
+  if (score >= 315) return isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen';
+  if (score >= 210) return isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen';
+  if (score >= 110) return isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen';
+  if (score >= 60) return isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen';
+  if (score >= 45) return isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen';
+  if (score >= 20) return isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen';
+  return isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
+}
+
+function getDisplayPosition(position: string | undefined, score: number, division: string): string {
+  const basePos = position || calculateDefaultPosition(score, division);
+  if (division === 'กองพระตำรวจหลวง' && basePos) {
+    if (basePos.includes('ครูฝึกทหารราชองครักษ์') || basePos.includes('Drill Master of the Royal Guards')) {
+      return 'ครูฝึกตำรวจหลวง สายทอง | Royal Police Instructor (Golden Line)';
+    }
+    if (basePos.startsWith('นายพันเวร')) return 'พันตำรวจหลวง | Royal Police Colonel';
+    if (basePos.startsWith('นายกองเวร')) return 'นายกองตำรวจหลวง | Royal Police Battalion Commander';
+    if (basePos.startsWith('นายหมวดเวร')) return 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer';
+    if (basePos.startsWith('นายหมู่เวร')) return 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader';
+    if (basePos.startsWith('พลทหารยามอาวุโส')) return 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper';
+    if (basePos.startsWith('พลทหารราชวัลลภพิเศษ')) return 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper';
+    if (basePos.startsWith('พลทหารยาม')) return 'พลประจำการตำรวจหลวง | Active Royal Police Trooper';
+    if (basePos.startsWith('พลอาสาสมัครทหารยาม')) return 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)';
+  }
+  return basePos;
 }
 
 export default function AdminPage() {
@@ -618,7 +638,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredPlayers.map((player, index) => {
-                    const displayPosition = player.position || calculateDefaultPosition(player.total_score, player.division);
+                    const displayPosition = getDisplayPosition(player.position, player.total_score, player.division);
 
                       return (
                         <tr
