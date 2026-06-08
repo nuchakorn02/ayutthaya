@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import * as XLSX from 'xlsx';
 import { createAdminClient } from '@/lib/supabase/server';
+import { sendDiscordWebhook } from '@/lib/discord';
 import type { ApiResponse } from '@/lib/types';
 
 interface CsvRow {
@@ -706,6 +707,20 @@ export async function POST(request: NextRequest) {
     if (updateImportCountsError) {
       console.error('Failed to update import session counts:', updateImportCountsError);
     }
+
+    // Send Discord Webhook notification in background
+    const importTemplate = process.env.DISCORD_IMPORT_TEMPLATE || 
+      '📁 **นำเข้าไฟล์กำลังพลสำเร็จ!**\n📄 ชื่อไฟล์: `{filename}`\n➕ เพิ่มกำลังพลใหม่: `+{imported} นาย`\n🔄 ปรับปรุงคะแนนสะสม: `{updated} นาย`\n⚠️ รายการขัดข้อง: `{errors} รายการ`';
+    
+    const importContent = importTemplate
+      .replace(/{filename}/g, fileName || 'ไม่ระบุชื่อไฟล์')
+      .replace(/{imported}/g, String(imported))
+      .replace(/{updated}/g, String(updated))
+      .replace(/{errors}/g, String(errors.length));
+
+    sendDiscordWebhook({
+      content: importContent
+    }).catch(err => console.error('Failed to send Discord webhook:', err));
 
     return NextResponse.json({
       data: { imported, updated, errors, import_id: importId },

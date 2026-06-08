@@ -1,6 +1,8 @@
 'use client';
 
-import { Player } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import { Player, ScoreHistory } from '@/lib/types';
+import AnimatedCounter from '@/components/AnimatedCounter';
 
 interface PlayerRowProps {
   player: Player;
@@ -49,7 +51,6 @@ function getDisplayPosition(position: string | undefined, score: number, divisio
   return basePos;
 }
 
-// Traditional Thai color palettes for the 8 divisions based on Image 1
 const divisionColors: Record<string, { bg: string; text: string; border: string }> = {
   'กองทัพธรณินพิทักษ์': { bg: 'bg-violet-600/15', text: 'text-violet-400', border: 'border-violet-500/30' },
   'กองทัพมหาเสือพิทักษ์': { bg: 'bg-amber-800/15', text: 'text-amber-500', border: 'border-amber-700/30 shadow-[0_0_8px_rgba(217,119,6,0.15)]' },
@@ -95,7 +96,12 @@ function getRankDisplay(rank: number) {
 }
 
 export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowProps) {
-  const displayPosition = player.position || calculateDefaultPosition(player.total_score, player.division);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [history, setHistory] = useState<ScoreHistory[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  const displayPosition = getDisplayPosition(player.position, player.total_score, player.division);
 
   const rankInfo = isSortedByScore
     ? getRankDisplay(rank)
@@ -108,11 +114,106 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
 
   const divColor = divisionColors[player.division] || divisionColors['กองทัพธรณินพิทักษ์'];
 
+  useEffect(() => {
+    if (isExpanded && !hasLoaded) {
+      setLoading(true);
+      fetch(`/api/players/${player.id}/history`)
+        .then((res) => res.json())
+        .then((resData) => {
+          if (resData.data) {
+            setHistory(resData.data);
+          }
+          setHasLoaded(true);
+        })
+        .catch((err) => console.error('Error fetching player history:', err))
+        .finally(() => setLoading(false));
+    }
+  }, [isExpanded, player.id, hasLoaded]);
+
+  const drawScoreChart = () => {
+    const scores = [player.starting_score ?? player.total_score];
+    const dates = ['เริ่มแรก'];
+
+    history.forEach((h) => {
+      scores.push(h.new_score);
+      const d = new Date(h.updated_at);
+      dates.push(d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' }));
+    });
+
+    if (scores.length <= 1) {
+      scores.push(player.total_score);
+      dates.push('ปัจจุบัน');
+    }
+
+    const min = Math.min(...scores);
+    const max = Math.max(...scores);
+    const range = max - min === 0 ? 10 : max - min;
+    const pad = 20;
+    const width = 450;
+    const height = 110;
+
+    const points = scores.map((val, idx) => {
+      const x = pad + (idx * (width - 2 * pad)) / (scores.length - 1);
+      const y = height - pad - ((val - min) * (height - 2 * pad)) / range;
+      return { x, y, val, date: dates[idx] };
+    });
+
+    let pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      pathD += ` L ${points[i].x} ${points[i].y}`;
+    }
+
+    const areaD = `${pathD} L ${points[points.length - 1].x} ${height - pad} L ${points[0].x} ${height - pad} Z`;
+
+    return (
+      <div className="flex flex-col items-center w-full max-w-md mx-auto py-2">
+        <p className="text-[9px] uppercase tracking-widest font-black text-accent-gold mb-3 animate-pulse">
+          📈 ประวัติคะแนนสะสมย้อนหลัง
+        </p>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+          <defs>
+            <linearGradient id={`grad-${player.id}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(251, 191, 36, 0.25)" />
+              <stop offset="100%" stopColor="rgba(251, 191, 36, 0)" />
+            </linearGradient>
+          </defs>
+
+          {/* Horizontal lines */}
+          <line x1={pad} y1={pad} x2={width - pad} y2={pad} stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
+          <line x1={pad} y1={height / 2} x2={width - pad} y2={height / 2} stroke="rgba(255,255,255,0.04)" strokeWidth={1} />
+          <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+
+          {/* Fill Area */}
+          <path d={areaD} fill={`url(#grad-${player.id})`} />
+
+          {/* Outline path */}
+          <path d={pathD} fill="none" stroke="#fbbf24" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* Points */}
+          {points.map((p, idx) => (
+            <g key={idx} className="group/dot">
+              <circle cx={p.x} cy={p.y} r={3.5} fill="#0a0a1a" stroke="#fbbf24" strokeWidth={2} className="transition-all duration-300 group-hover/dot:r-5" />
+              <text x={p.x} y={p.y - 8} textAnchor="middle" className="font-mono text-[9px] font-bold fill-amber-300">
+                {p.val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+              </text>
+              <text x={p.x} y={height - 2} textAnchor="middle" className="text-[8px] font-medium fill-text-secondary">
+                {p.date}
+              </text>
+            </g>
+          ))}
+        </svg>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Desktop Row */}
       <tr
-        className={`player-row hidden border-b border-white/5 md:table-row ${rankInfo.glowClass}`}
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`player-row hidden border-b border-white/5 md:table-row cursor-pointer select-none transition-all duration-300 ${
+          isExpanded ? 'bg-white/[0.02] border-l-4 border-l-accent-gold' : ''
+        } ${rankInfo.glowClass}`}
       >
         {/* Rank */}
         <td className="px-6 py-4">
@@ -133,9 +234,25 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
 
         {/* Player Name */}
         <td className="px-6 py-4">
-          <span className={`${(isSortedByScore && rank <= 3) ? rankInfo.textClass : 'text-text-primary font-medium'}`}>
-            {player.player_name}
-          </span>
+          <div className="flex items-center gap-3">
+            {/* Roblox Avatar */}
+            <div className={`relative h-8 w-8 rounded-full overflow-hidden border bg-white/5 flex-shrink-0 ${
+              isSortedByScore && rank === 1 ? 'border-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' :
+              isSortedByScore && rank === 2 ? 'border-gray-300 shadow-[0_0_6px_rgba(209,213,219,0.3)]' :
+              isSortedByScore && rank === 3 ? 'border-amber-700 shadow-[0_0_6px_rgba(205,127,50,0.3)]' :
+              'border-white/10'
+            }`}>
+              <img
+                src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
+                alt={player.player_name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+            <span className={`${(isSortedByScore && rank <= 3) ? rankInfo.textClass : 'text-text-primary font-medium'}`}>
+              {player.player_name}
+            </span>
+          </div>
         </td>
 
         {/* Position */}
@@ -170,16 +287,37 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                   : 'text-text-primary'
             }`}
           >
-            {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            <AnimatedCounter value={player.total_score} />
           </span>
         </td>
       </tr>
 
+      {/* Expanded Chart (Desktop) */}
+      {isExpanded && (
+        <tr className="hidden md:table-row bg-white/[0.01]">
+          <td colSpan={5} className="px-6 py-4 border-b border-white/5">
+            {loading ? (
+              <div className="flex justify-center items-center py-4 text-xs text-text-secondary gap-2">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-gold border-t-transparent" />
+                กำลังโหลดประวัติคะแนน...
+              </div>
+            ) : history.length === 0 && hasLoaded ? (
+              <p className="text-center text-xs text-text-secondary py-4">ไม่มีประวัติการอัปเดตแต้มของทหารรายนี้</p>
+            ) : (
+              drawScoreChart()
+            )}
+          </td>
+        </tr>
+      )}
+
       {/* Mobile Card */}
       <tr className="md:hidden">
-        <td colSpan={4}>
+        <td colSpan={5}>
           <div
-            className={`glass-card mx-2 mb-3 p-4 border border-white/5 ${rankInfo.glowClass}`}
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`glass-card mx-2 mb-3 p-4 border border-white/5 cursor-pointer select-none transition-all duration-300 ${
+              isExpanded ? 'border-accent-gold/40 bg-white/[0.04]' : ''
+            } ${rankInfo.glowClass}`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -194,6 +332,21 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                       #{rank}
                     </span>
                   )}
+                </div>
+
+                {/* Roblox Avatar (Mobile) */}
+                <div className={`relative h-9 w-9 rounded-full overflow-hidden border bg-white/5 flex-shrink-0 ${
+                  isSortedByScore && rank === 1 ? 'border-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]' :
+                  isSortedByScore && rank === 2 ? 'border-gray-300 shadow-[0_0_6px_rgba(209,213,219,0.3)]' :
+                  isSortedByScore && rank === 3 ? 'border-amber-700 shadow-[0_0_6px_rgba(205,127,50,0.3)]' :
+                  'border-white/10'
+                }`}>
+                  <img
+                    src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
+                    alt={player.player_name}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
                 </div>
 
                 <div>
@@ -231,10 +384,26 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                         : 'text-text-primary'
                   }`}
                 >
-                  {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+                  <AnimatedCounter value={player.total_score} />
                 </p>
               </div>
             </div>
+
+            {/* Expanded Chart (Mobile) */}
+            {isExpanded && (
+              <div className="mt-4 pt-4 border-t border-white/5" onClick={(e) => e.stopPropagation()}>
+                {loading ? (
+                  <div className="flex justify-center items-center py-2 text-xs text-text-secondary gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-gold border-t-transparent" />
+                    กำลังโหลดประวัติคะแนน...
+                  </div>
+                ) : history.length === 0 && hasLoaded ? (
+                  <p className="text-center text-xs text-text-secondary py-2">ไม่มีประวัติการอัปเดตแต้ม</p>
+                ) : (
+                  drawScoreChart()
+                )}
+              </div>
+            )}
           </div>
         </td>
       </tr>

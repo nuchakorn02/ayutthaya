@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ParticleBackground from '@/components/ParticleBackground';
 
 export const metadata: Metadata = {
   title: 'กรมทหารราชวัลลภ',
@@ -11,7 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="th" className="dark">
       <body className="bg-bg-primary min-h-screen bg-grid antialiased relative overflow-x-hidden">
         {/* Floating Embers Particles Backdrop */}
-        <div className="bg-embers" />
+        <ParticleBackground />
         
         {/* Content Layer */}
         <div className="relative z-10 min-h-screen flex flex-col">

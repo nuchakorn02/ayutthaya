@@ -64,6 +64,240 @@ function getDisplayPosition(position: string | undefined, score: number, divisio
   return basePos;
 }
 
+function DivisionBarChart({ data }: { data: { name: string; totalScore: number }[] }) {
+  const maxScore = Math.max(...data.map(d => d.totalScore), 1);
+  const chartHeight = 220;
+  const paddingBottom = 40;
+  const paddingTop = 20;
+  const paddingLeft = 45;
+  const paddingRight = 15;
+  
+  const getShortName = (name: string) => {
+    return name
+      .replace('กองทัพมหาเสือพิทักษ์', 'มหาเสือ')
+      .replace('กองทัพธรณินพิทักษ์', 'ธรณิน')
+      .replace('กองทัพอาทมาต', 'อาทมาต')
+      .replace('กองพระตำรวจหลวง', 'ตำรวจหลวง')
+      .replace('กองทัพที่ 1 ปัญจะซันยะ', 'ทัพ 1')
+      .replace('กองทัพที่ 2 วัชรนาถ', 'ทัพ 2')
+      .replace('กองทัพที่ 3 ปุณฑริก', 'ทัพ 3')
+      .replace('กองทัพที่ 4 เกาโมทก', 'ทัพ 4');
+  };
+
+  const colors = [
+    '#fbbf24', // มหาเสือ (gold)
+    '#a855f7', // ธรณิน (purple)
+    '#71717a', // อาทมาต (zinc)
+    '#f97316', // ตำรวจหลวง (orange)
+    '#94a3b8', // ทัพ 1 (slate)
+    '#f43f5e', // ทัพ 2 (rose)
+    '#8b5cf6', // ทัพ 3 (violet)
+    '#0ea5e9'  // ทัพ 4 (sky)
+  ];
+
+  return (
+    <div className="w-full">
+      <svg viewBox="0 0 500 240" className="w-full h-auto select-none">
+        {/* Grid lines */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+          const y = paddingTop + (chartHeight - paddingTop - paddingBottom) * (1 - ratio);
+          const val = Math.round(maxScore * ratio);
+          return (
+            <g key={idx} className="opacity-20">
+              <line x1={paddingLeft} y1={y} x2={500 - paddingRight} y2={y} stroke="#e2e8f0" strokeWidth="1" strokeDasharray="3 3" />
+              <text x={paddingLeft - 8} y={y + 4} fill="#94a3b8" fontSize="10" textAnchor="end" className="font-mono">
+                {val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((d, idx) => {
+          const count = data.length;
+          const barWidth = 32;
+          const gap = (500 - paddingLeft - paddingRight - (barWidth * count)) / (count - 1);
+          const x = paddingLeft + idx * (barWidth + gap);
+          
+          const graphHeight = chartHeight - paddingTop - paddingBottom;
+          const barHeight = maxScore > 0 ? (d.totalScore / maxScore) * graphHeight : 0;
+          const y = chartHeight - paddingBottom - barHeight;
+          const color = colors[idx] || '#00f0ff';
+          const shortName = getShortName(d.name);
+
+          return (
+            <g key={d.name} className="group">
+              {/* Background trace */}
+              <rect
+                x={x}
+                y={paddingTop}
+                width={barWidth}
+                height={graphHeight}
+                fill="rgba(255,255,255,0.02)"
+                rx="4"
+              />
+
+              {/* Foreground bar */}
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={Math.max(barHeight, 3)}
+                fill={color}
+                rx="4"
+                className="transition-all duration-500 ease-out hover:opacity-80"
+                style={{ filter: `drop-shadow(0 0 6px ${color}44)` }}
+              />
+
+              {/* Value on top of bar */}
+              {d.totalScore > 0 && (
+                <text
+                  x={x + barWidth / 2}
+                  y={y - 6}
+                  fill="#e2e8f0"
+                  fontSize="9"
+                  fontWeight="bold"
+                  textAnchor="middle"
+                  className="font-mono opacity-80"
+                >
+                  {d.totalScore.toFixed(0)}
+                </text>
+              )}
+
+              {/* X label */}
+              <text
+                x={x + barWidth / 2}
+                y={chartHeight - paddingBottom + 16}
+                fill="#94a3b8"
+                fontSize="9"
+                textAnchor="middle"
+                className="font-medium"
+              >
+                {shortName}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+function DivisionDonutChart({ data }: { data: { name: string; count: number }[] }) {
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  const size = 200;
+  const radius = 70;
+  const strokeWidth = 18;
+  const center = size / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const getShortName = (name: string) => {
+    return name
+      .replace('กองทัพมหาเสือพิทักษ์', 'มหาเสือ')
+      .replace('กองทัพธรณินพิทักษ์', 'ธรณิน')
+      .replace('กองทัพอาทมาต', 'อาทมาต')
+      .replace('กองพระตำรวจหลวง', 'ตำรวจ')
+      .replace('กองทัพที่ 1 ปัญจะซันยะ', 'ทัพ 1')
+      .replace('กองทัพที่ 2 วัชรนาถ', 'ทัพ 2')
+      .replace('กองทัพที่ 3 ปุณฑริก', 'ทัพ 3')
+      .replace('กองทัพที่ 4 เกาโมทก', 'ทัพ 4');
+  };
+
+  const colors = [
+    '#fbbf24', // มหาเสือ (gold)
+    '#a855f7', // ธรณิน (purple)
+    '#71717a', // อาทมาต (zinc)
+    '#f97316', // ตำรวจหลวง (orange)
+    '#94a3b8', // ทัพ 1 (slate)
+    '#f43f5e', // ทัพ 2 (rose)
+    '#8b5cf6', // ทัพ 3 (violet)
+    '#0ea5e9'  // ทัพ 4 (sky)
+  ];
+
+  let accumulatedPercent = 0;
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center gap-6 justify-center w-full">
+      {/* SVG Donut */}
+      <div className="relative w-40 h-40 flex-shrink-0">
+        <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full select-none transform -rotate-90">
+          {/* Background circle */}
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="transparent"
+            stroke="rgba(255,255,255,0.03)"
+            strokeWidth={strokeWidth}
+          />
+
+          {total === 0 ? (
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              fill="transparent"
+              stroke="rgba(255,255,255,0.1)"
+              strokeWidth={strokeWidth}
+            />
+          ) : (
+            data.map((d, idx) => {
+              const percent = d.count / total;
+              const strokeLength = percent * circumference;
+              const strokeOffset = circumference - (accumulatedPercent * circumference);
+              accumulatedPercent += percent;
+              const color = colors[idx] || '#00f0ff';
+
+              return (
+                <circle
+                  key={d.name}
+                  cx={center}
+                  cy={center}
+                  r={radius}
+                  fill="transparent"
+                  stroke={color}
+                  strokeWidth={strokeWidth}
+                  strokeDasharray={`${strokeLength} ${circumference}`}
+                  strokeDashoffset={strokeOffset}
+                  strokeLinecap="round"
+                  className="transition-all duration-700 ease-out hover:opacity-85"
+                  style={{ filter: `drop-shadow(0 0 3px ${color}33)` }}
+                />
+              );
+            })
+          )}
+        </svg>
+
+        {/* Centered Total Count */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          <span className="text-text-secondary text-[9px] uppercase font-bold tracking-wider">กำลังพลรวม</span>
+          <span className="text-xl font-mono font-black text-text-primary mt-0.5">{total}</span>
+          <span className="text-text-secondary text-[9px]">นาย</span>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs font-medium w-full max-w-[280px]">
+        {data.map((d, idx) => {
+          const color = colors[idx] || '#00f0ff';
+          const percent = total > 0 ? ((d.count / total) * 100).toFixed(0) : '0';
+          return (
+            <div key={d.name} className="flex items-center justify-between border-b border-white/5 pb-1">
+              <div className="flex items-center gap-1.5 truncate">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }} />
+                <span className="text-text-secondary truncate text-[10px]">{getShortName(d.name)}</span>
+              </div>
+              <span className="font-mono text-text-primary text-[10px] font-bold">
+                {d.count} <span className="text-[8px] text-text-secondary font-normal">({percent}%)</span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -89,6 +323,10 @@ export default function AdminPage() {
   const [sessionLogsLoading, setSessionLogsLoading] = useState(false);
   const [sessionSearchQuery, setSessionSearchQuery] = useState('');
 
+  // Reset & Rollback states
+  const [isResetting, setIsResetting] = useState(false);
+  const [rollingBackSessionId, setRollingBackSessionId] = useState<string | null>(null);
+
   const handleDeletePlayer = async (player: Player) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้เล่น "${player.player_name}" ออกจากระบบ? การดำเนินการนี้ไม่สามารถย้อนกลับได้`)) {
       setIsDeleting(true);
@@ -109,6 +347,61 @@ export default function AdminPage() {
       } finally {
         setIsDeleting(false);
       }
+    }
+  };
+
+  const handleResetDatabase = async () => {
+    const confirm1 = confirm('🚨 คำเตือนขั้นเด็ดขาด! คุณต้องการล้างฐานข้อมูลทหารทั้งหมดใช่หรือไม่? ประวัติคะแนนสะสมและบันทึกเซสชันทั้งหมดจะถูกลบอย่างถาวร!');
+    if (!confirm1) return;
+    
+    const confirm2 = confirm('ต้องการดำเนินการต่อจริงๆ ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้!');
+    if (!confirm2) return;
+    
+    setIsResetting(true);
+    try {
+      const res = await fetch('/api/admin/reset', {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || 'ล้างฐานข้อมูลไม่สำเร็จ');
+      }
+      alert('ล้างฐานข้อมูลสำเร็จเรียบร้อยแล้ว!');
+      fetchPlayers();
+      fetchTopIncreases();
+      fetchLogs();
+      fetchImportSessions();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการล้างฐานข้อมูล');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleRollbackSession = async (session: ImportSession) => {
+    const confirmMsg = `ต้องการย้อนกลับ (Rollback) เซสชันการนำเข้าไฟล์ "${session.filename}" ใช่หรือไม่?\nการดำเนินการนี้จะลบผู้เล่นใหม่ที่สร้างขึ้นจากไฟล์นี้ และย้อนคะแนนของทหารทุกคนกลับเป็นค่าก่อนการอัปโหลดไฟล์นี้!`;
+    if (!confirm(confirmMsg)) return;
+
+    setRollingBackSessionId(session.id);
+    try {
+      const res = await fetch(`/api/admin/imports/${session.id}/rollback`, {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error || 'ย้อนกลับเซสชันไม่สำเร็จ');
+      }
+      alert('ย้อนกลับข้อมูลในเซสชันนี้สำเร็จเรียบร้อยแล้ว!');
+      setSelectedSession(null);
+      setSessionLogs([]);
+      fetchPlayers();
+      fetchTopIncreases();
+      fetchLogs();
+      fetchImportSessions();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการย้อนกลับ');
+    } finally {
+      setRollingBackSessionId(null);
     }
   };
 
@@ -526,6 +819,39 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
+
+        {/* SVG charts: Total scores bar chart and headcount donut chart */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 mt-6">
+          {/* Bar Chart Card */}
+          <div className="glass-card p-6 border-white/5 flex flex-col justify-between">
+            <div>
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-5 pb-2 border-b border-white/5 flex items-center gap-2">
+                <span>📈</span> สถิติเปรียบเทียบแต้มสะสมรวมแยกตามกองทัพ
+              </h3>
+              <div className="py-2">
+                <DivisionBarChart data={divStats} />
+              </div>
+            </div>
+            <p className="text-[10px] text-text-secondary/40 text-center mt-4">
+              แสดงพละกำลังรบสะสมจำแนกตามผลรวมคะแนนทุกนายในแต่ละสังกัด
+            </p>
+          </div>
+
+          {/* Donut Chart Card */}
+          <div className="glass-card p-6 border-white/5 flex flex-col justify-between">
+            <div>
+              <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-5 pb-2 border-b border-white/5 flex items-center gap-2">
+                <span>🍩</span> สัดส่วนยอดอัตรากำลังพลแต่ละกองทัพ
+              </h3>
+              <div className="py-2 flex justify-center">
+                <DivisionDonutChart data={divStats} />
+              </div>
+            </div>
+            <p className="text-[10px] text-text-secondary/40 text-center mt-4">
+              คำนวณสัดส่วนประชากรทหารรักษาพระองค์ที่มีรายชื่อในทำเนียบ
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* Section 1: Top Score Increases */}
@@ -582,19 +908,36 @@ export default function AdminPage() {
             </span>
           </div>
 
-          {/* Export Excel Button */}
-          <button
-            onClick={handleExportExcel}
-            className="inline-flex items-center gap-2 rounded-xl border border-accent-gold/20 bg-accent-gold/5
-              px-4 py-2 text-xs font-bold text-accent-gold tracking-wider uppercase
-              transition-all duration-300 hover:border-accent-gold/50 hover:bg-accent-gold/10
-              hover:shadow-[0_0_15px_rgba(212,175,55,0.1)] cursor-pointer"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            💾 ดาวน์โหลดสำรองข้อมูลทำเนียบ Excel
-          </button>
+          <div className="flex flex-wrap gap-3">
+            {/* Export Excel Button */}
+            <button
+              onClick={handleExportExcel}
+              className="inline-flex items-center gap-2 rounded-xl border border-accent-gold/20 bg-accent-gold/5
+                px-4 py-2 text-xs font-bold text-accent-gold tracking-wider uppercase
+                transition-all duration-300 hover:border-accent-gold/50 hover:bg-accent-gold/10
+                hover:shadow-[0_0_15px_rgba(212,175,55,0.1)] cursor-pointer"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              💾 ดาวน์โหลดสำรองข้อมูลทำเนียบ Excel
+            </button>
+
+            {/* Reset Database Button */}
+            <button
+              onClick={handleResetDatabase}
+              disabled={isResetting}
+              className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5
+                px-4 py-2 text-xs font-bold text-red-400 tracking-wider uppercase
+                transition-all duration-300 hover:border-red-500/50 hover:bg-red-500/10
+                hover:shadow-[0_0_15px_rgba(239,68,68,0.1)] cursor-pointer disabled:opacity-50"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              {isResetting ? 'กำลังล้าง...' : '🚨 ล้างฐานข้อมูลทหารทั้งหมด'}
+            </button>
+          </div>
         </div>
 
         {/* Search and Filter */}
@@ -809,13 +1152,30 @@ export default function AdminPage() {
                   <>
                     {/* Header */}
                     <div className="mb-5 pb-3 border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-sm font-bold text-accent-gold flex items-center gap-2">
-                          <span>🔍</span> เจาะลึกรายชื่อทหารในไฟล์
-                        </h3>
-                        <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[300px]">
-                          ไฟล์: {selectedSession.filename}
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <h3 className="text-sm font-bold text-accent-gold flex items-center gap-2">
+                            <span>🔍</span> เจาะลึกรายชื่อทหารในไฟล์
+                          </h3>
+                          <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[200px]">
+                            ไฟล์: {selectedSession.filename}
+                          </p>
+                        </div>
+                        
+                        {/* Rollback Session Button */}
+                        <button
+                          onClick={() => handleRollbackSession(selectedSession)}
+                          disabled={rollingBackSessionId === selectedSession.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5
+                            px-2.5 py-1 text-[10px] font-bold text-red-400 uppercase tracking-wider
+                            transition-all duration-300 hover:border-red-500/50 hover:bg-red-500/10
+                            hover:shadow-[0_0_10px_rgba(239,68,68,0.1)] cursor-pointer disabled:opacity-50"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                          </svg>
+                          {rollingBackSessionId === selectedSession.id ? 'กำลังย้อนกลับ...' : '↩️ ย้อนกลับไฟล์นี้'}
+                        </button>
                       </div>
                       
                       {/* Search Input for individual in import */}

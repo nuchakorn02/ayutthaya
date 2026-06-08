@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
+import { sendDiscordWebhook } from '@/lib/discord';
 import type { Player, ApiResponse } from '@/lib/types';
 
 function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
@@ -116,6 +117,24 @@ export async function PATCH(
           { status: 200 }
         );
       }
+    }
+
+    if (scoreDiff !== 0) {
+      const diffSign = scoreDiff > 0 ? '+' : '';
+      const updateTemplate = process.env.DISCORD_UPDATE_TEMPLATE ||
+        '⚔️ **ปรับปรุงแต้มสะสมรายบุคคลสำเร็จ!**\n💂 ทหาร: `{name}`\n🛡️ กองสังกัด: `{division}`\n🎖️ ยศ/ตำแหน่ง: `{position}`\n📈 คะแนนสะสม: `{old_score}` ➡️ `{new_score}` (เปลี่ยนแปลง: `{score_diff}` แต้ม)';
+      
+      const updateContent = updateTemplate
+        .replace(/{name}/g, existingPlayer.player_name)
+        .replace(/{division}/g, existingPlayer.division)
+        .replace(/{position}/g, (updatedPlayer as any).position || 'ไม่มีตำแหน่ง')
+        .replace(/{old_score}/g, String(oldScore))
+        .replace(/{new_score}/g, String(newScore))
+        .replace(/{score_diff}/g, `${diffSign}${scoreDiff}`);
+
+      sendDiscordWebhook({
+        content: updateContent
+      }).catch(err => console.error('Failed to send Discord webhook:', err));
     }
 
     return NextResponse.json({ data: updatedPlayer as Player } satisfies ApiResponse<Player>);
