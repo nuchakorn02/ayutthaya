@@ -150,7 +150,7 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                   : 'text-text-primary'
             }`}
           >
-            {player.total_score.toLocaleString()}
+            {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
           </span>
         </td>
       </tr>
@@ -211,7 +211,7 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                         : 'text-text-primary'
                   }`}
                 >
-                  {player.total_score.toLocaleString()}
+                  {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>

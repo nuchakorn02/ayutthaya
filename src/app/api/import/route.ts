@@ -416,8 +416,8 @@ export async function POST(request: NextRequest) {
           rawScore = isNaN(parsedFloat) ? 0 : parsedFloat;
         }
         
-        // Round decimal score to nearest integer to store in Supabase int4 safely
-        const totalScore = Math.round(rawScore);
+        // Keep decimal score to store in Supabase DOUBLE PRECISION
+        const totalScore = rawScore;
 
         // Parse custom position from sheet if available
         let customPosition = '';
@@ -540,7 +540,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (isNaN(totalScore)) {
-        errors.push(`แถวที่ ${rowIndex}: คะแนนรวมไม่ถูกต้อง (${row.total_score || 'ว่าง'}) ต้องเป็นตัวเลขจำนวนเต็มเท่านั้น`);
+        errors.push(`แถวที่ ${rowIndex}: คะแนนรวมไม่ถูกต้อง (${row.total_score || 'ว่าง'}) ต้องเป็นตัวเลขหรือทศนิยมเท่านั้น`);
         continue;
       }
 

@@ -76,7 +76,7 @@ export default function TopIncreaseCard({ data, division }: TopIncreaseCardProps
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
             </svg>
             <span className={`font-mono text-2xl font-black ${accent.text}`}>
-              +{data.score_increase.toLocaleString()}
+              +{data.score_increase.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
             </span>
           </div>
 

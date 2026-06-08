@@ -381,7 +381,7 @@ export default function AdminPage() {
               </p>
             </div>
             <p className="font-mono text-xs text-accent-gold mt-2">
-              คะแนนสะสมรวม: {supremeDiv && supremeDiv.totalScore > 0 ? supremeDiv.totalScore.toLocaleString() : 0} แต้ม
+              คะแนนสะสมรวม: {supremeDiv && supremeDiv.totalScore > 0 ? supremeDiv.totalScore.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : 0} แต้ม
             </p>
           </div>
 
@@ -390,7 +390,7 @@ export default function AdminPage() {
             <div>
               <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">ยอดแต้มรบเคลื่อนไหว (7 วันล่าสุด)</p>
               <p className="font-mono text-3xl font-black text-green-400 mt-2">
-                +{weeklyPoints.toLocaleString()} <span className="text-base font-semibold text-text-secondary">แต้ม</span>
+                +{weeklyPoints.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} <span className="text-base font-semibold text-text-secondary">แต้ม</span>
               </p>
             </div>
             <p className="text-[10px] text-text-secondary mt-2">
@@ -422,7 +422,7 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between text-xs">
                       <span className={`font-semibold ${accentColor}`}>{d.name}</span>
                       <span className="font-mono text-text-secondary font-medium">
-                        {d.count} นาย • {d.totalScore.toLocaleString()} แต้ม
+                        {d.count} นาย • {d.totalScore.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} แต้ม
                       </span>
                     </div>
                     <div className="relative h-2 w-full bg-white/5 rounded-full overflow-hidden">
@@ -644,19 +644,19 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-right font-mono">
                             <div className="flex flex-col items-end">
                               <span className="font-bold text-accent-cyan flex items-center gap-1.5 justify-end">
-                                {player.total_score.toLocaleString()}
+                                {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                 {player.latest_change !== undefined && player.latest_change !== 0 && (
                                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
                                     player.latest_change > 0 
                                       ? 'text-green-400 bg-green-500/10 border-green-500/20' 
                                       : 'text-red-400 bg-red-500/10 border-red-500/20'
                                   }`}>
-                                    {player.latest_change > 0 ? '+' : ''}{player.latest_change}
+                                    {player.latest_change > 0 ? '+' : ''}{player.latest_change.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                                   </span>
                                 )}
                               </span>
                               <span className="text-[10px] text-text-secondary mt-0.5">
-                                เริ่มแรก: {player.starting_score !== undefined ? player.starting_score.toLocaleString() : player.total_score.toLocaleString()}
+                                เริ่มแรก: {player.starting_score !== undefined ? player.starting_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                               </span>
                             </div>
                           </td>
@@ -960,11 +960,11 @@ export default function AdminPage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold font-mono ${diffColor}`}>
-                            {diffSign}{log.score_diff} แต้ม
+                            {diffSign}{log.score_diff.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} แต้ม
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right font-mono font-bold text-accent-gold">
-                          {log.new_score.toLocaleString()}
+                          {log.new_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </td>
                       </tr>
                     );
