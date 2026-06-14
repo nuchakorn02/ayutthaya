@@ -42,7 +42,7 @@ export default function ExecutiveBoard({ players }: ExecutiveBoardProps) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 justify-center max-w-4xl mx-auto">
         {sortedPlayers.map((player, index) => {
           const showScore = shouldShowScore(player.position);
-          const isChief = player.position?.includes('เจ้ากรม');
+          const isChief = player.position?.includes('เจ้ากรม') && !player.position?.includes('รอง') && !player.position?.includes('ผู้ช่วย');
           
           return (
             <div
