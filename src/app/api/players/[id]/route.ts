@@ -37,7 +37,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { total_score, position } = body;
+    const { total_score, position, reason } = body;
 
     if (total_score === undefined && position === undefined) {
       return NextResponse.json(
@@ -104,6 +104,7 @@ export async function PATCH(
           old_score: oldScore,
           new_score: newScore,
           score_diff: scoreDiff,
+          reason: reason ? reason.trim() : null,
         });
 
       if (historyError) {
@@ -121,16 +122,24 @@ export async function PATCH(
 
     if (scoreDiff !== 0) {
       const diffSign = scoreDiff > 0 ? '+' : '';
-      const updateTemplate = process.env.DISCORD_UPDATE_TEMPLATE ||
+      let updateTemplate = process.env.DISCORD_UPDATE_TEMPLATE ||
         '⚔️ **ปรับปรุงแต้มสะสมรายบุคคลสำเร็จ!**\n💂 ทหาร: `{name}`\n🛡️ กองสังกัด: `{division}`\n🎖️ ยศ/ตำแหน่ง: `{position}`\n📈 คะแนนสะสม: `{old_score}` ➡️ `{new_score}` (เปลี่ยนแปลง: `{score_diff}` แต้ม)';
       
-      const updateContent = updateTemplate
+      if (reason) {
+        updateTemplate += '\n📝 เหตุผล: `{reason}`';
+      }
+
+      let updateContent = updateTemplate
         .replace(/{name}/g, existingPlayer.player_name)
         .replace(/{division}/g, existingPlayer.division)
         .replace(/{position}/g, (updatedPlayer as any).position || 'ไม่มีตำแหน่ง')
         .replace(/{old_score}/g, String(oldScore))
         .replace(/{new_score}/g, String(newScore))
         .replace(/{score_diff}/g, `${diffSign}${scoreDiff}`);
+
+      if (reason) {
+        updateContent = updateContent.replace(/{reason}/g, reason.trim());
+      }
 
       sendDiscordWebhook({
         content: updateContent

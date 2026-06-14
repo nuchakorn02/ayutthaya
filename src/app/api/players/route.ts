@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const validDivisions = [
+      'คณะผู้บริหาร',
       'กองทัพมหาเสือพิทักษ์',
       'กองทัพธรณินพิทักษ์',
       'กองทัพอาทมาต',
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     if (!division || typeof division !== 'string' || !validDivisions.includes(division)) {
       return NextResponse.json(
-        { error: 'Invalid division. Must be one of the 8 valid divisions.' } satisfies ApiResponse<never>,
+        { error: 'Invalid division. Must be one of the valid divisions.' } satisfies ApiResponse<never>,
         { status: 400 }
       );
     }

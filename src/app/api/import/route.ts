@@ -30,6 +30,9 @@ function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<inf
 function matchDivisionFuzzy(valStr: string): string | null {
   const normalized = valStr.replace(/\s+/g, '').replace(/[·\-\.]/g, '').toLowerCase();
   
+  if (normalized.includes('คณะผู้บริหาร') || normalized.includes('ผู้บริหาร') || normalized.includes('คณะบริหาร') || normalized.includes('บริหาร')) {
+    return 'คณะผู้บริหาร';
+  }
   if (
     normalized.includes('ธรณินพิทักษ์') || 
     normalized.includes('ธรณิน') || 
@@ -521,14 +524,18 @@ export async function POST(request: NextRequest) {
     }
 
     const dbPlayerMap = new Map<string, typeof existingDbPlayers[number]>();
+    const dbPlayerByNameMap = new Map<string, typeof existingDbPlayers[number]>();
     existingDbPlayers?.forEach((p) => {
       dbPlayerMap.set(`${p.player_name}_${p.division}`, p);
+      dbPlayerByNameMap.set(p.player_name, p);
     });
 
     let imported = 0;
     let updated = 0;
     const errors: string[] = [];
     const processedKeys = new Set<string>();
+    const processedNamesInFile = new Set<string>();
+    const processedIds = new Set<string>();
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -550,6 +557,7 @@ export async function POST(request: NextRequest) {
       }
 
       const validDivisions = [
+        'คณะผู้บริหาร',
         'กองทัพมหาเสือพิทักษ์',
         'กองทัพธรณินพิทักษ์',
         'กองทัพอาทมาต',
@@ -561,7 +569,7 @@ export async function POST(request: NextRequest) {
       ];
 
       if (!validDivisions.includes(division)) {
-        errors.push(`แถวที่ ${rowIndex}: ชื่อกองไม่ถูกต้อง (${division ? `'${division}'` : 'ไม่มีชื่อกอง'}) กองที่อนุญาตคือ: ธรณินพิทักษ์, มหาเสือพิทักษ์, อาทมาต, พระตำรวจหลวง, กองทัพ 1-4`);
+        errors.push(`แถวที่ ${rowIndex}: ชื่อกองไม่ถูกต้อง (${division ? `'${division}'` : 'ไม่มีชื่อกอง'}) กองที่อนุญาตคือ: คณะผู้บริหาร, ธรณินพิทักษ์, มหาเสือพิทักษ์, อาทมาต, พระตำรวจหลวง, กองทัพ 1-4`);
         continue;
       }
 
@@ -570,13 +578,35 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const key = `${playerName}_${division}`;
-      processedKeys.add(key);
+      const fileKey = `${playerName}_${division}`;
+      
+      // Smart Validation: Detect duplicates within the uploaded file
+      if (processedNamesInFile.has(playerName)) {
+        errors.push(`[แจ้งเตือน] แถวที่ ${rowIndex}: พบชื่อผู้เล่น "${playerName}" ซ้ำซ้อนในไฟล์อัปโหลด คะแนนและตำแหน่งจะถูกอัปเดตทับข้อมูลแถวก่อนหน้า`);
+      }
+      processedNamesInFile.add(playerName);
+      processedKeys.add(fileKey);
 
       try {
-        const existingPlayer = dbPlayerMap.get(key);
+        let existingPlayer = dbPlayerMap.get(fileKey);
+        let isDivisionTransfer = false;
+        let oldDivision = '';
+
+        // Conflict Resolve: If no exact match by name + division, check if player exists in DB under another division
+        if (!existingPlayer) {
+          const matchedByName = dbPlayerByNameMap.get(playerName);
+          if (matchedByName) {
+            existingPlayer = matchedByName;
+            isDivisionTransfer = true;
+            oldDivision = matchedByName.division;
+            errors.push(`[ย้ายสังกัด] แถวที่ ${rowIndex}: ย้ายทหาร "${playerName}" จาก "${oldDivision}" ไปยัง "${division}" (สืบทอดและเก็บรักษาประวัติคะแนนเดิมสำเร็จ)`);
+          }
+        }
 
         if (existingPlayer) {
+          // Track this ID as processed so it won't be deleted at the end!
+          processedIds.add(existingPlayer.id);
+
           const oldScore = existingPlayer.total_score;
           const scoreDiff = totalScore - oldScore;
 
@@ -584,24 +614,30 @@ export async function POST(request: NextRequest) {
           const baseTime = new Date('2026-05-27T00:00:00Z').getTime();
           const sequentialCreatedAt = new Date(baseTime + rowIndex * 1000).toISOString();
 
-          // We ALWAYS update created_at to match Excel's exact row order!
-          // We also update score, position, and latest_change.
+          // Prepare payload
+          const updatePayload: any = {
+            total_score: totalScore,
+            position: row.position,
+            latest_change: oldScore !== totalScore ? scoreDiff : 0,
+            created_at: sequentialCreatedAt
+          };
+
+          if (isDivisionTransfer) {
+            updatePayload.division = division;
+          }
+
           const { error: updateError } = await adminClient
             .from('players')
-            .update({ 
-              total_score: totalScore,
-              position: row.position,
-              latest_change: oldScore !== totalScore ? scoreDiff : 0,
-              created_at: sequentialCreatedAt
-            })
+            .update(updatePayload)
             .eq('id', existingPlayer.id);
 
           if (updateError) {
-            errors.push(`Row ${rowIndex}: Update failed — ${updateError.message}`);
+            errors.push(`แถวที่ ${rowIndex}: อัปเดตข้อมูลผู้เล่นล้มเหลว — ${updateError.message}`);
             continue;
           }
 
-          if (oldScore !== totalScore) {
+          // If score changed OR division changed, insert history
+          if (oldScore !== totalScore || isDivisionTransfer) {
             const { error: historyError } = await adminClient
               .from('score_history')
               .insert({
@@ -612,7 +648,7 @@ export async function POST(request: NextRequest) {
               });
 
             if (historyError) {
-              errors.push(`Row ${rowIndex}: Score updated but history insert failed — ${historyError.message}`);
+              errors.push(`แถวที่ ${rowIndex}: อัปเดตคะแนนเรียบร้อย แต่การบันทึกประวัติแต้มขัดข้อง — ${historyError.message}`);
             }
 
             // Save delta for this import log
@@ -632,7 +668,7 @@ export async function POST(request: NextRequest) {
           const baseTime = new Date('2026-05-27T00:00:00Z').getTime();
           const sequentialCreatedAt = new Date(baseTime + rowIndex * 1000).toISOString();
 
-          const { error: insertError } = await adminClient
+          const { data: newInsertedPlayer, error: insertError } = await adminClient
             .from('players')
             .insert({
               player_name: playerName,
@@ -642,11 +678,17 @@ export async function POST(request: NextRequest) {
               starting_score: totalScore,
               latest_change: 0,
               created_at: sequentialCreatedAt
-            });
+            })
+            .select('id')
+            .single();
 
           if (insertError) {
-            errors.push(`Row ${rowIndex}: Insert failed — ${insertError.message}`);
+            errors.push(`แถวที่ ${rowIndex}: เพิ่มรายชื่อทหารใหม่ล้มเหลว — ${insertError.message}`);
             continue;
+          }
+
+          if (newInsertedPlayer) {
+            processedIds.add(newInsertedPlayer.id);
           }
 
           // New player counts as delta change equal to their starting score
@@ -662,13 +704,13 @@ export async function POST(request: NextRequest) {
           imported++;
         }
       } catch (rowErr) {
-        errors.push(`Row ${rowIndex}: Unexpected error — ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`);
+        errors.push(`แถวที่ ${rowIndex}: เกิดข้อผิดพลาดที่ไม่คาดคิด — ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`);
       }
     }
 
     // 2. Clear out old players from database who are NOT in the spreadsheet
     const idsToDelete = existingDbPlayers
-      .filter((p) => !processedKeys.has(`${p.player_name}_${p.division}`))
+      .filter((p) => !processedIds.has(p.id))
       .map((p) => p.id);
 
     if (idsToDelete.length > 0) {

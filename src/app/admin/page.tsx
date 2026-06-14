@@ -10,12 +10,14 @@ import ScoreUpdater from '@/components/ScoreUpdater';
 import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import AddPlayerModal from '@/components/AddPlayerModal';
 
 interface AuditLog {
   id: string;
   old_score: number;
   new_score: number;
   score_diff: number;
+  reason?: string | null;
   updated_at: string;
   players: {
     player_name: string;
@@ -313,6 +315,7 @@ export default function AdminPage() {
   const [logsLoading, setLogsLoading] = useState(true);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Import sessions delta history state
@@ -595,6 +598,7 @@ export default function AdminPage() {
   };
 
   const divisionColors: Record<string, string> = {
+    'คณะผู้บริหาร': 'text-purple-400',
     'กองทัพธรณินพิทักษ์': 'text-violet-400',
     'กองทัพมหาเสือพิทักษ์': 'text-amber-500',
     'กองทัพอาทมาต': 'text-zinc-400',
@@ -909,6 +913,17 @@ export default function AdminPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {/* Quick Add Player Button */}
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-accent-cyan/20 bg-accent-cyan/5
+                px-4 py-2 text-xs font-bold text-accent-cyan tracking-wider uppercase
+                transition-all duration-300 hover:border-accent-cyan/50 hover:bg-accent-cyan/10
+                hover:shadow-[0_0_15px_rgba(0,240,255,0.1)] cursor-pointer"
+            >
+              <span>➕</span> เพิ่มทหารรายใหม่
+            </button>
+
             {/* Export Excel Button */}
             <button
               onClick={handleExportExcel}
@@ -1309,6 +1324,9 @@ export default function AdminPage() {
                     <th className="px-6 py-3 text-center text-xs font-semibold tracking-wider text-text-secondary uppercase">
                       กิจกรรม
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
+                      เหตุผล
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-semibold tracking-wider text-text-secondary uppercase">
                       คะแนนสะสมใหม่
                     </th>
@@ -1343,6 +1361,9 @@ export default function AdminPage() {
                             {diffSign}{log.score_diff.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} แต้ม
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-left text-xs text-text-secondary italic">
+                          {log.reason || <span className="opacity-30">—</span>}
+                        </td>
                         <td className="px-6 py-4 text-right font-mono font-bold text-accent-gold">
                           {log.new_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
                         </td>
@@ -1365,6 +1386,13 @@ export default function AdminPage() {
           setEditingPlayer(null);
         }}
         onUpdate={handleUpdateComplete}
+      />
+
+      {/* Quick Add Player Modal */}
+      <AddPlayerModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onAdd={handleUpdateComplete}
       />
 
       {/* Floating Scroll to Top / Bottom Buttons */}

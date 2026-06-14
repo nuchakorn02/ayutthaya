@@ -8,6 +8,7 @@ interface PlayerRowProps {
   player: Player;
   rank: number;
   isSortedByScore: boolean;
+  rankChange?: number;
 }
 
 function calculateDefaultPosition(score: number, division: string): string {
@@ -95,7 +96,7 @@ function getRankDisplay(rank: number) {
   }
 }
 
-export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowProps) {
+export default function PlayerRow({ player, rank, isSortedByScore, rankChange }: PlayerRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [history, setHistory] = useState<ScoreHistory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -206,6 +207,113 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
     );
   };
 
+  const drawActivityHistory = () => {
+    // Show updates, newest first
+    const reversedHistory = [...history].reverse();
+
+    return (
+      <div className="mt-4 w-full max-w-md mx-auto">
+        <p className="text-[9px] uppercase tracking-widest font-black text-accent-gold mb-3 text-center">
+          📜 บันทึกเหตุผลการปรับปรุงคะแนน
+        </p>
+        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+          {reversedHistory.map((h, idx) => {
+            const dateStr = new Date(h.updated_at).toLocaleString('th-TH', {
+              day: '2-digit',
+              month: '2-digit',
+              year: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            const diffSign = h.score_diff > 0 ? `+${h.score_diff}` : `${h.score_diff}`;
+            const diffColor = h.score_diff > 0 ? 'text-green-400' : 'text-red-400';
+
+            return (
+              <div
+                key={h.id || idx}
+                className="flex flex-col p-2.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-all duration-200 text-left"
+              >
+                <div className="flex justify-between items-center text-[10px]">
+                  <span className="text-text-secondary font-mono">{dateStr}</span>
+                  <span className={`font-mono font-bold ${diffColor}`}>
+                    {diffSign} แต้ม ({h.old_score} ➔ {h.new_score})
+                  </span>
+                </div>
+                <p className="text-xs text-text-primary mt-1 font-medium pl-1 border-l-2 border-accent-gold/50">
+                  {h.reason || <span className="text-text-secondary/50 italic font-normal">ไม่มีระบุเหตุผล (การนำเข้าไฟล์หรือการปรับปรุงทั่วไป)</span>}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const drawNextRankProgress = () => {
+    const score = player.total_score;
+    const isPolice = player.division === 'กองพระตำรวจหลวง';
+
+    // Ranks and their milestones
+    const milestones = [
+      { score: 20, rankName: 'Guardsmen (พลทหารยาม)', policeName: 'Active Trooper (พลประจำการตำรวจหลวง)' },
+      { score: 45, rankName: 'Royal Elite Guardsmen (พลทหารราชวัลลภพิเศษ)', policeName: 'Special Trooper (พลตำรวจหลวงพิเศษ)' },
+      { score: 60, rankName: 'Senior Guardsmen (พลทหารยามอาวุโส)', policeName: 'Senior Trooper (พลตำรวจหลวงอาวุโส)' },
+      { score: 110, rankName: 'Squad Head Guardsmen (นายหมู่เวร)', policeName: 'Squad Leader (นายหมู่ตำรวจหลวง)' },
+      { score: 210, rankName: 'Platoon Head Guardsmen (นายหมวดเวร)', policeName: 'Platoon Officer (นายหมวดตำรวจหลวง)' },
+      { score: 315, rankName: 'Company Head Guardsmen (นายกองเวร)', policeName: 'Battalion Commander (นายกองตำรวจหลวง)' },
+      { score: 600, rankName: 'Battalion Commander (นายพันเวร)', policeName: 'Colonel (พันตำรวจหลวง)' }
+    ];
+
+    // Find the next milestone
+    const nextMilestone = milestones.find((m) => m.score > score);
+    
+    if (!nextMilestone) {
+      return (
+        <div className="mt-4 p-4 rounded-xl border border-accent-gold/20 bg-accent-gold/5 text-center w-full max-w-md mx-auto">
+          <p className="text-xs font-bold text-accent-gold uppercase tracking-wider">🏆 บรรลุระดับยศสูงสุดทางคะแนนแล้ว 🏆</p>
+          <p className="text-[10px] text-text-secondary mt-1">
+            คะแนนปัจจุบัน: <span className="font-mono font-bold text-accent-gold-glowing">{score}</span> แต้ม (ระดับผู้บัญชาการทหารอาวุโส)
+          </p>
+        </div>
+      );
+    }
+
+    // Previous milestone score
+    const prevMilestoneScore = [...milestones].reverse().find((m) => m.score <= score)?.score || 0;
+    
+    // Calculate progress percentage
+    const totalDiff = nextMilestone.score - prevMilestoneScore;
+    const currentDiff = score - prevMilestoneScore;
+    const pct = Math.max(0, Math.min(100, (currentDiff / totalDiff) * 100));
+
+    const pointsNeeded = nextMilestone.score - score;
+    const nextRankName = isPolice ? nextMilestone.policeName : nextMilestone.rankName;
+
+    return (
+      <div className="mt-4 p-4 rounded-xl border border-white/5 bg-white/[0.01] w-full max-w-md mx-auto">
+        <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+          <span className="text-text-secondary">ยศถัดไป: <span className="text-accent-gold font-bold">{nextRankName}</span></span>
+          <span className="text-text-secondary/70 font-mono">อีก {pointsNeeded.toFixed(2).replace(/\.00$/, '')} แต้ม</span>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="relative w-full h-3 bg-white/5 border border-white/5 rounded-full overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-accent-gold to-amber-500 shadow-[0_0_8px_#d4af37] transition-all duration-500"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+
+        <div className="flex justify-between items-center text-[10px] text-text-secondary/50 mt-1.5 font-mono">
+          <span>{prevMilestoneScore} แต้ม</span>
+          <span className="text-accent-gold font-bold">{pct.toFixed(0)}% ({score.toFixed(2).replace(/\.00$/, '')} / {nextMilestone.score} แต้ม)</span>
+          <span>{nextMilestone.score} แต้ม</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Desktop Row */}
@@ -229,6 +337,17 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                 </span>
               )}
             </div>
+
+            {/* Rank Change Trend Indicator */}
+            {isSortedByScore && rankChange !== undefined && rankChange !== 0 && (
+              <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                rankChange > 0 
+                  ? 'text-green-400 bg-green-500/10' 
+                  : 'text-red-400 bg-red-500/10'
+              }`}>
+                {rankChange > 0 ? '▲' : '▼'} {Math.abs(rankChange)}
+              </span>
+            )}
           </div>
         </td>
 
@@ -252,6 +371,19 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
             <span className={`${(isSortedByScore && rank <= 3) ? rankInfo.textClass : 'text-text-primary font-medium'}`}>
               {player.player_name}
             </span>
+            {/* Badges */}
+            <div className="flex gap-1.5 ml-2 flex-shrink-0">
+              {player.total_score >= 500 && (
+                <span className="inline-flex items-center rounded bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-bold text-amber-400 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.1)] select-none whitespace-nowrap" title="ทหารอาวุโส (มีแต้มสะสมตั้งแต่ 500 แต้มขึ้นไป)">
+                  🎖️ Veteran
+                </span>
+              )}
+              {player.latest_change !== undefined && player.latest_change > 30 && (
+                <span className="inline-flex items-center rounded bg-green-500/10 px-1.5 py-0.5 text-[9px] font-bold text-green-400 border border-green-500/20 shadow-[0_0_8px_rgba(34,197,94,0.1)] select-none whitespace-nowrap" title="Active (มีแต้มเพิ่มขึ้นเกิน 30 แต้มในการอัปเดตล่าสุด)">
+                  🔥 Active
+                </span>
+              )}
+            </div>
           </div>
         </td>
 
@@ -302,9 +434,16 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                 กำลังโหลดประวัติคะแนน...
               </div>
             ) : history.length === 0 && hasLoaded ? (
-              <p className="text-center text-xs text-text-secondary py-4">ไม่มีประวัติการอัปเดตแต้มของทหารรายนี้</p>
+              <div className="flex flex-col items-center justify-center py-4 gap-2">
+                <p className="text-center text-xs text-text-secondary">ไม่มีประวัติการอัปเดตแต้มของทหารรายนี้</p>
+                {drawNextRankProgress()}
+              </div>
             ) : (
-              drawScoreChart()
+              <div className="flex flex-col items-center justify-center gap-4">
+                {drawScoreChart()}
+                {drawActivityHistory()}
+                {drawNextRankProgress()}
+              </div>
             )}
           </td>
         </tr>
@@ -322,14 +461,26 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* Rank Badge */}
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300 ${rankInfo.rankBg}`}
-                >
-                  {rankInfo.emoji ? (
-                    <span className="text-xl">{rankInfo.emoji}</span>
-                  ) : (
-                    <span className="text-base font-bold text-accent-gold">
-                      #{rank}
+                <div className="relative">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl transition-all duration-300 ${rankInfo.rankBg}`}
+                  >
+                    {rankInfo.emoji ? (
+                      <span className="text-xl">{rankInfo.emoji}</span>
+                    ) : (
+                      <span className="text-base font-bold text-accent-gold">
+                        #{rank}
+                      </span>
+                    )}
+                  </div>
+                  {/* Rank Change Indicator Badge (Mobile) */}
+                  {isSortedByScore && rankChange !== undefined && rankChange !== 0 && (
+                    <span className={`absolute -top-1.5 -right-1.5 inline-flex items-center justify-center text-[8px] font-black h-5 px-1.5 min-w-5 rounded-full border border-[#0a0a1a] ${
+                      rankChange > 0 
+                        ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                        : 'bg-red-500/20 text-red-400 border-red-500/30'
+                    }`}>
+                      {rankChange > 0 ? '▲' : '▼'}{Math.abs(rankChange)}
                     </span>
                   )}
                 </div>
@@ -350,13 +501,26 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                 </div>
 
                 <div>
-                  <p
-                    className={`font-semibold ${
-                      (isSortedByScore && rank <= 3) ? rankInfo.textClass : 'text-text-primary'
-                    }`}
-                  >
-                    {player.player_name}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p
+                      className={`font-semibold ${
+                        (isSortedByScore && rank <= 3) ? rankInfo.textClass : 'text-text-primary'
+                      }`}
+                    >
+                      {player.player_name}
+                    </p>
+                    {/* Badges (Mobile) */}
+                    {player.total_score >= 500 && (
+                      <span className="inline-flex items-center rounded bg-amber-500/10 px-1 py-0.5 text-[8px] font-bold text-amber-400 border border-amber-500/20 whitespace-nowrap select-none">
+                        🎖️ Veteran
+                      </span>
+                    )}
+                    {player.latest_change !== undefined && player.latest_change > 30 && (
+                      <span className="inline-flex items-center rounded bg-green-500/10 px-1 py-0.5 text-[8px] font-bold text-green-400 border border-green-500/20 whitespace-nowrap select-none">
+                        🔥 Active
+                      </span>
+                    )}
+                  </div>
                   <p className={`text-[10px] font-medium mt-0.5 ${
                     (displayPosition?.includes('ปลัด') || displayPosition === 'พระยามหาเสือ' || displayPosition === 'พระยาอัครอารักษ์' || displayPosition === 'พระยาอาทมาตราชภักดี')
                       ? 'text-accent-gold-glowing font-bold'
@@ -398,9 +562,16 @@ export default function PlayerRow({ player, rank, isSortedByScore }: PlayerRowPr
                     กำลังโหลดประวัติคะแนน...
                   </div>
                 ) : history.length === 0 && hasLoaded ? (
-                  <p className="text-center text-xs text-text-secondary py-2">ไม่มีประวัติการอัปเดตแต้ม</p>
+                  <div className="flex flex-col items-center gap-2">
+                    <p className="text-center text-xs text-text-secondary py-2">ไม่มีประวัติการอัปเดตแต้ม</p>
+                    {drawNextRankProgress()}
+                  </div>
                 ) : (
-                  drawScoreChart()
+                  <div className="flex flex-col items-center gap-4">
+                    {drawScoreChart()}
+                    {drawActivityHistory()}
+                    {drawNextRankProgress()}
+                  </div>
                 )}
               </div>
             )}

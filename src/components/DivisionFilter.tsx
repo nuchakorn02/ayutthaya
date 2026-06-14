@@ -7,6 +7,7 @@ interface DivisionFilterProps {
 
 const divisions = [
   { value: '', label: 'ทุกกรมกอง', color: 'bg-accent-gold' },
+  { value: 'คณะผู้บริหาร', label: 'คณะผู้บริหาร', color: 'bg-purple-600 shadow-[0_0_10px_#a855f7]' },
   { value: 'กองทัพมหาเสือพิทักษ์', label: 'กองทัพมหาเสือพิทักษ์', color: 'bg-amber-600' },
   { value: 'กองทัพธรณินพิทักษ์', label: 'กองทัพธรณินพิทักษ์', color: 'bg-violet-500' },
   { value: 'กองทัพอาทมาต', label: 'กองทัพอาทมาต', color: 'bg-zinc-500' },

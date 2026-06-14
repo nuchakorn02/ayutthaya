@@ -9,6 +9,7 @@ interface AuditLogResponse {
   old_score: number;
   new_score: number;
   score_diff: number;
+  reason: string | null;
   updated_at: string;
   players: {
     player_name: string;
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Query latest 30 score changes joined with player name and division
     const { data: logs, error: logsError } = await adminClient
       .from('score_history')
-      .select('id, old_score, new_score, score_diff, updated_at, players(player_name, division)')
+      .select('id, old_score, new_score, score_diff, reason, updated_at, players(player_name, division)')
       .order('updated_at', { ascending: false })
       .limit(30);
 

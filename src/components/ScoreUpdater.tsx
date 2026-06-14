@@ -13,6 +13,7 @@ interface ScoreUpdaterProps {
 export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: ScoreUpdaterProps) {
   const [newScore, setNewScore] = useState('');
   const [newPosition, setNewPosition] = useState('');
+  const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -21,6 +22,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
     if (player) {
       setNewScore(String(player.total_score));
       setNewPosition(player.position || '');
+      setReason('');
       setFeedback(null);
     }
   }, [player]);
@@ -90,6 +92,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
         body: JSON.stringify({
           total_score: Number(newScore),
           position: newPosition.trim() || null,
+          reason: reason.trim() || null,
         }),
       });
 
@@ -220,6 +223,22 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
               value={newPosition}
               onChange={(e) => setNewPosition(e.target.value)}
               placeholder="เช่น นายพันเวร, พลทหารยาม..."
+              className="glass-card w-full px-4 py-2.5 text-sm text-text-primary
+                outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
+                focus:border-accent-gold/40 focus:shadow-[0_0_15px_rgba(212,175,55,0.08)]"
+            />
+          </div>
+
+          {/* Reason Input */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              ระบุเหตุผลการปรับแต้ม (ไม่บังคับ)
+            </label>
+            <input
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="เช่น ตรวจพระนครเวรคืนวันที่ 14, ฝึกฝนทหารใหม่..."
               className="glass-card w-full px-4 py-2.5 text-sm text-text-primary
                 outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
                 focus:border-accent-gold/40 focus:shadow-[0_0_15px_rgba(212,175,55,0.08)]"

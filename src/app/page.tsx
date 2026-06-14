@@ -6,6 +6,7 @@ import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
 import Leaderboard from '@/components/Leaderboard';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import ExecutiveBoard from '@/components/ExecutiveBoard';
 
 export default function HomePage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -14,6 +15,7 @@ export default function HomePage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [rankChanges, setRankChanges] = useState<Record<string, number>>({});
 
   // Slideshow banner setup
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -45,15 +47,13 @@ export default function HomePage() {
     }) + ' น.';
   };
 
-  const fetchPlayers = useCallback(async (div: string) => {
+  const fetchPlayers = useCallback(async () => {
     setLoading(true);
     try {
-      const url = div ? `/api/players?division=${div}` : '/api/players';
-      const res = await fetch(url);
+      const res = await fetch('/api/players');
       const json = await res.json();
       const playerList = json.data || [];
       setPlayers(playerList);
-      setFilteredPlayers(playerList);
       
       if (json.lastUpdated) {
         setLastUpdated(formatThaiDateTime(json.lastUpdated));
@@ -63,29 +63,72 @@ export default function HomePage() {
     } catch (err) {
       console.error('Failed to fetch players:', err);
       setPlayers([]);
-      setFilteredPlayers([]);
       setLastUpdated(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Fetch on mount and when division changes
+  // Fetch on mount
   useEffect(() => {
-    fetchPlayers(division);
-  }, [division, fetchPlayers]);
+    fetchPlayers();
+  }, [fetchPlayers]);
 
-  // Local search filter
+  // Local filtering and sorting logic for division and search
   useEffect(() => {
-    if (!search.trim()) {
-      setFilteredPlayers(players);
+    let result = [...players];
+    if (division) {
+      result = result.filter((p) => p.division === division);
+      // Sort by created_at ascending for specific divisions
+      result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     } else {
-      const query = search.toLowerCase();
-      setFilteredPlayers(
-        players.filter((p) => p.player_name.toLowerCase().includes(query))
-      );
+      // Sort by total_score descending for general leaderboard
+      result.sort((a, b) => b.total_score - a.total_score);
     }
-  }, [search, players]);
+
+    if (search.trim()) {
+      const query = search.toLowerCase();
+      result = result.filter((p) => p.player_name.toLowerCase().includes(query));
+    }
+
+    setFilteredPlayers(result);
+  }, [players, division, search]);
+
+  // Compute global rank change map for competitive ranking (non-executives)
+  useEffect(() => {
+    if (players.length === 0) return;
+
+    // Filter out executive players for competitive ranking
+    const normalPlayers = players.filter((p) => p.division !== 'คณะผู้บริหาร');
+
+    // 1. Sort by current score descending to get current global ranks
+    const currentSorted = [...normalPlayers].sort((a, b) => b.total_score - a.total_score);
+    const currentRanks = new Map<string, number>();
+    currentSorted.forEach((p, idx) => {
+      currentRanks.set(p.id, idx + 1);
+    });
+
+    // 2. Sort by previous score descending to get previous global ranks
+    const previousSorted = [...normalPlayers].sort((a, b) => {
+      const prevA = a.total_score - (a.latest_change || 0);
+      const prevB = b.total_score - (b.latest_change || 0);
+      return prevB - prevA;
+    });
+    const previousRanks = new Map<string, number>();
+    previousSorted.forEach((p, idx) => {
+      previousRanks.set(p.id, idx + 1);
+    });
+
+    // 3. Compute rank changes
+    const changes: Record<string, number> = {};
+    normalPlayers.forEach((p) => {
+      const curr = currentRanks.get(p.id) || 0;
+      const prev = previousRanks.get(p.id) || 0;
+      changes[p.id] = prev - curr; // positive means moved up
+    });
+
+    setRankChanges(changes);
+  }, [players]);
 
   const handleDivisionChange = (value: string) => {
     setDivision(value);
@@ -208,9 +251,26 @@ export default function HomePage() {
         <DivisionFilter value={division} onChange={handleDivisionChange} />
       </div>
 
-      {/* Leaderboard */}
+      {/* Leaderboard & Executive Board */}
       <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-        {loading ? <LoadingSpinner /> : <Leaderboard players={filteredPlayers} isSortedByScore={!division} />}
+        {loading ? (
+          <LoadingSpinner />
+        ) : (() => {
+          const execPlayers = filteredPlayers.filter((p) => p.division === 'คณะผู้บริหาร');
+          const normalPlayers = filteredPlayers.filter((p) => p.division !== 'คณะผู้บริหาร');
+          
+          return (
+            <>
+              {/* Executive Board */}
+              <ExecutiveBoard players={execPlayers} />
+
+              {/* Leaderboard Table (only show if we have normal players OR if we are not filtering by Executive Board) */}
+              {(normalPlayers.length > 0 || (division !== 'คณะผู้บริหาร' && normalPlayers.length === 0)) && (
+                <Leaderboard players={normalPlayers} isSortedByScore={!division} rankChanges={rankChanges} />
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Footer */}

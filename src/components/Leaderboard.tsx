@@ -6,9 +6,10 @@ import PlayerRow from './PlayerRow';
 interface LeaderboardProps {
   players: Player[];
   isSortedByScore: boolean;
+  rankChanges?: Record<string, number>;
 }
 
-export default function Leaderboard({ players, isSortedByScore }: LeaderboardProps) {
+export default function Leaderboard({ players, isSortedByScore, rankChanges }: LeaderboardProps) {
   if (players.length === 0) {
     return (
       <div className="glass-card glow-cyan flex flex-col items-center justify-center px-8 py-20">
@@ -55,6 +56,7 @@ export default function Leaderboard({ players, isSortedByScore }: LeaderboardPro
               player={player}
               rank={index + 1}
               isSortedByScore={isSortedByScore}
+              rankChange={rankChanges ? rankChanges[player.id] : undefined}
             />
           ))}
         </tbody>

@@ -15,6 +15,7 @@ export interface ScoreHistory {
   old_score: number;
   new_score: number;
   score_diff: number;
+  reason?: string;
   updated_at: string;
 }
 
