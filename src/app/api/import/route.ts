@@ -289,7 +289,7 @@ export async function POST(request: NextRequest) {
         ) {
           nameColIndex = j;
         } 
-        // Map score column
+        // Map score column (New Score / Total Score)
         else if (
           valStr === 'แต้มใหม่' || 
           valStr === 'total_score' || 
@@ -302,7 +302,9 @@ export async function POST(request: NextRequest) {
           valStr === 'คะแนนการทำงาน' ||
           valStr.includes('คะแนนสะสม') ||
           valStr.includes('แต้มใหม่') ||
-          valStr.includes('แต้มทำงาน')
+          valStr.includes('แต้มทำงาน') ||
+          (valStr.includes('แต้ม') && !valStr.includes('เก่า') && !valStr.includes('เดิม') && !valStr.includes('ต่าง') && !valStr.includes('ได้')) ||
+          (valStr.includes('คะแนน') && !valStr.includes('เก่า') && !valStr.includes('เดิม') && !valStr.includes('ต่าง') && !valStr.includes('ได้'))
         ) {
           scoreColIndex = j;
         }
@@ -319,7 +321,7 @@ export async function POST(request: NextRequest) {
         ) {
           divisionColIndex = j;
         }
-        // Map position/rank column
+        // Map position/rank column (handles decomposed Thai U+0E33 vowels in 'ตำแหน่ง')
         else if (
           valStr === 'ตำแหน่ง' ||
           valStr === 'ยศ' ||
@@ -328,7 +330,9 @@ export async function POST(request: NextRequest) {
           valStr === 'position' ||
           valStr === 'rank' ||
           valStr.includes('ตำแหน่ง') ||
-          valStr.includes('ยศ')
+          valStr.includes('ยศ') ||
+          valStr.includes('ตำ') ||
+          valStr.includes('แหน่ง')
         ) {
           positionColIndex = j;
         }
@@ -345,6 +349,7 @@ export async function POST(request: NextRequest) {
     console.log(' - nameColIndex:', nameColIndex);
     console.log(' - scoreColIndex:', scoreColIndex);
     console.log(' - divisionColIndex:', divisionColIndex);
+    console.log(' - positionColIndex:', positionColIndex);
 
     // Fallback if we couldn't find the header row explicitly
     if (headerRowIndex === -1) {
@@ -358,6 +363,12 @@ export async function POST(request: NextRequest) {
     if (scoreColIndex === -1) {
       scoreColIndex = nameColIndex + 2; // Usually total_score is 2 columns after name
       console.log('Applied score index fallback:', scoreColIndex);
+    }
+
+    // Default to Column N (index 13) for position if not matched
+    if (positionColIndex === -1) {
+      positionColIndex = 13;
+      console.log('Applied position index fallback:', positionColIndex);
     }
 
     console.log('Final parsing indices:');
