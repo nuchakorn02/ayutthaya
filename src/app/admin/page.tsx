@@ -26,6 +26,9 @@ interface AuditLog {
 }
 
 function calculateDefaultPosition(score: number, division: string): string {
+  if (division === 'คณะผู้บริหาร') {
+    return 'คณะผู้บริหารส่วนกลาง';
+  }
   if (division === 'กองทัพมหาเสือพิทักษ์') {
     return 'ทหารเสือประจำพระองค์';
   }

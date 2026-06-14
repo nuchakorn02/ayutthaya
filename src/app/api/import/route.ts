@@ -119,6 +119,9 @@ function matchDivisionFuzzy(valStr: string): string | null {
 }
 
 function calculateDefaultPosition(score: number, division: string): string {
+  if (division === 'คณะผู้บริหาร') {
+    return 'คณะผู้บริหารส่วนกลาง';
+  }
   if (division === 'กองทัพมหาเสือพิทักษ์') {
     return 'ทหารเสือประจำพระองค์';
   }
@@ -280,7 +283,9 @@ export async function POST(request: NextRequest) {
           valStr === 'ชื่อ' || 
           valStr === 'player_name' || 
           valStr === 'name' || 
-          valStr === 'player'
+          valStr === 'player' ||
+          valStr.includes('ชื่อผู้เล่น') ||
+          valStr.includes('รายชื่อ')
         ) {
           nameColIndex = j;
         } 
@@ -294,7 +299,10 @@ export async function POST(request: NextRequest) {
           valStr === 'แต้ม' ||
           valStr === 'คะแนน' ||
           valStr === 'แต้มการทำงาน' ||
-          valStr === 'คะแนนการทำงาน'
+          valStr === 'คะแนนการทำงาน' ||
+          valStr.includes('คะแนนสะสม') ||
+          valStr.includes('แต้มใหม่') ||
+          valStr.includes('แต้มทำงาน')
         ) {
           scoreColIndex = j;
         }
@@ -305,7 +313,9 @@ export async function POST(request: NextRequest) {
           valStr === 'หน่วยงาน' ||
           valStr === 'division' ||
           valStr === 'ประเภท' ||
-          valStr === 'กลุ่ม'
+          valStr === 'กลุ่ม' ||
+          valStr.includes('กองสังกัด') ||
+          valStr.includes('สังกัด')
         ) {
           divisionColIndex = j;
         }
@@ -316,7 +326,9 @@ export async function POST(request: NextRequest) {
           valStr === 'ตำแหน่ง/ยศ' ||
           valStr === 'ยศ/ตำแหน่ง' ||
           valStr === 'position' ||
-          valStr === 'rank'
+          valStr === 'rank' ||
+          valStr.includes('ตำแหน่ง') ||
+          valStr.includes('ยศ')
         ) {
           positionColIndex = j;
         }
