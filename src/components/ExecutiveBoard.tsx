@@ -33,7 +33,7 @@ export default function ExecutiveBoard({ players }: ExecutiveBoardProps) {
             คณะผู้บริหารสูงสุด
           </h2>
           <p className="text-[10px] uppercase font-bold tracking-widest text-text-secondary mt-0.5">
-            Executive Command Board • ส่วนกลางคุมทัพ
+            Executive Command Board
           </p>
         </div>
       </div>
