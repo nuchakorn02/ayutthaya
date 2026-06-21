@@ -47,10 +47,11 @@ export default function HomePage() {
     }) + ' น.';
   };
 
-  const fetchPlayers = useCallback(async () => {
+  const fetchPlayers = useCallback(async (currentDiv?: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/players');
+      const url = currentDiv ? `/api/players?division=${encodeURIComponent(currentDiv)}` : '/api/players';
+      const res = await fetch(url);
       const json = await res.json();
       const playerList = json.data || [];
       setPlayers(playerList);
@@ -69,16 +70,15 @@ export default function HomePage() {
     }
   }, []);
 
-  // Fetch on mount
+  // Fetch when division changes
   useEffect(() => {
-    fetchPlayers();
-  }, [fetchPlayers]);
+    fetchPlayers(division);
+  }, [division, fetchPlayers]);
 
   // Local filtering and sorting logic for division and search
   useEffect(() => {
     let result = [...players];
     if (division) {
-      result = result.filter((p) => p.division === division);
       // Sort by created_at ascending for specific divisions
       result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     } else {
