@@ -386,16 +386,22 @@ export async function POST(request: NextRequest) {
       const row = rawRows[i];
       if (!Array.isArray(row)) continue;
 
-      // Check if this row contains a division name
+      // Check if this row contains a division banner
+      // Banners are rows that either have no player name, or the player name cell itself matches a division name.
       let matchedDivBanner = '';
       const rowNameValue = String(row[nameColIndex] || '').trim();
-      
-      for (let j = 0; j < row.length; j++) {
-        const valStr = String(row[j] || '').trim();
-        const fuzzyMatch = matchDivisionFuzzy(valStr);
-        if (fuzzyMatch) {
-          matchedDivBanner = fuzzyMatch;
-          break;
+      const cleanPlayerName = rowNameValue.replace(/^\d+\.\s*/, '').trim();
+      const isNameDivision = matchDivisionFuzzy(cleanPlayerName);
+
+      if (!cleanPlayerName || isNameDivision) {
+        // Scan the first few cells of the row for a division banner match
+        for (let j = 0; j < Math.min(row.length, 3); j++) {
+          const valStr = String(row[j] || '').trim();
+          const fuzzyMatch = matchDivisionFuzzy(valStr);
+          if (fuzzyMatch) {
+            matchedDivBanner = fuzzyMatch;
+            break;
+          }
         }
       }
 
