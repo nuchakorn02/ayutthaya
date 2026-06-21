@@ -58,20 +58,33 @@ export default function ExecutiveBoard({ players }: ExecutiveBoardProps) {
               <div className={`absolute top-0 left-0 w-full h-[2px] ${isChief ? 'bg-gradient-to-r from-transparent via-accent-gold to-transparent' : 'bg-gradient-to-r from-transparent via-purple-500/50 to-transparent'}`} />
 
               <div className="flex items-start justify-between gap-4 mb-3">
-                <div className="truncate">
-                  {/* Roblox Name */}
-                  <h3 className="font-mono text-base font-bold text-text-primary truncate">
-                    {player.player_name}
-                  </h3>
-                  
-                  {/* Position Badge */}
-                  <p className={`text-xs font-semibold mt-1 ${isChief ? 'text-accent-gold' : 'text-purple-300'}`}>
-                    {player.position || 'คณะผู้บริหารส่วนกลาง'}
-                  </p>
+                <div className="flex items-center gap-3 truncate">
+                  {/* Roblox Avatar */}
+                  <div className={`relative h-12 w-12 rounded-full overflow-hidden border bg-white/5 flex-shrink-0 ${
+                    isChief ? 'border-accent-gold shadow-[0_0_8px_rgba(251,191,36,0.3)]' : 'border-white/10'
+                  }`}>
+                    <img
+                      src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
+                      alt={player.player_name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  <div className="truncate">
+                    {/* Roblox Name */}
+                    <h3 className="font-mono text-base font-bold text-text-primary truncate">
+                      {player.player_name}
+                    </h3>
+                    
+                    {/* Position Badge */}
+                    <p className={`text-xs font-semibold mt-1 ${isChief ? 'text-accent-gold' : 'text-purple-300'}`}>
+                      {player.position || 'คณะผู้บริหารส่วนกลาง'}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Avatar Rank Stamp */}
-                <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm select-none
+                <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm select-none flex-shrink-0
                   ${isChief ? 'bg-accent-gold/15 text-accent-gold border border-accent-gold/20' : 'bg-white/5 text-text-secondary'}`}
                 >
                   {isChief ? '🎖️' : `0${index + 1}`}
