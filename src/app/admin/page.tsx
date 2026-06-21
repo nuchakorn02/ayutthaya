@@ -332,6 +332,7 @@ export default function AdminPage() {
   // Reset & Rollback states
   const [isResetting, setIsResetting] = useState(false);
   const [rollingBackSessionId, setRollingBackSessionId] = useState<string | null>(null);
+  const [rollbackProgress, setRollbackProgress] = useState(0);
 
   const handleDeletePlayer = async (player: Player) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้เล่น "${player.player_name}" ออกจากระบบ? การดำเนินการนี้ไม่สามารถย้อนกลับได้`)) {
@@ -389,14 +390,36 @@ export default function AdminPage() {
     if (!confirm(confirmMsg)) return;
 
     setRollingBackSessionId(session.id);
+    setRollbackProgress(0);
+
+    // Simulated progress interval
+    let progress = 0;
+    const interval = setInterval(() => {
+      if (progress < 40) {
+        progress += Math.floor(Math.random() * 8) + 6;
+      } else if (progress < 80) {
+        progress += Math.floor(Math.random() * 4) + 2;
+      } else if (progress < 96) {
+        progress += 1;
+      }
+      setRollbackProgress(Math.min(progress, 96));
+    }, 150);
+
     try {
       const res = await fetch(`/api/admin/imports/${session.id}/rollback`, {
         method: 'POST',
       });
+      clearInterval(interval);
+      setRollbackProgress(100);
+
       if (!res.ok) {
         const json = await res.json();
         throw new Error(json.error || 'ย้อนกลับเซสชันไม่สำเร็จ');
       }
+
+      // Small delay to let user see 100% completion
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       alert('ย้อนกลับข้อมูลในเซสชันนี้สำเร็จเรียบร้อยแล้ว!');
       setSelectedSession(null);
       setSessionLogs([]);
@@ -405,9 +428,12 @@ export default function AdminPage() {
       fetchLogs();
       fetchImportSessions();
     } catch (err) {
+      clearInterval(interval);
+      setRollbackProgress(0);
       alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการย้อนกลับ');
     } finally {
       setRollingBackSessionId(null);
+      setRollbackProgress(0);
     }
   };
 
@@ -1192,7 +1218,7 @@ export default function AdminPage() {
                           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                           </svg>
-                          {rollingBackSessionId === selectedSession.id ? 'กำลังย้อนกลับ...' : '↩️ ย้อนกลับไฟล์นี้'}
+                          {rollingBackSessionId === selectedSession.id ? `ย้อนกลับ (${rollbackProgress}%)` : '↩️ ย้อนกลับไฟล์นี้'}
                         </button>
                       </div>
                       
@@ -1208,6 +1234,34 @@ export default function AdminPage() {
                         <span className="absolute right-2.5 top-2 text-text-secondary text-xs">🔍</span>
                       </div>
                     </div>
+
+                    {/* Rollback Progress Bar */}
+                    {rollingBackSessionId === selectedSession.id && (
+                      <div className="mb-5 p-4 rounded-xl border border-red-500/20 bg-red-500/5 space-y-2 animate-slide-up">
+                        <div className="flex justify-between items-center text-xs font-bold text-red-400">
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse-glow" />
+                            กำลังย้อนกลับฐานข้อมูล (ลบกำลังพลใหม่ & คืนค่าคะแนนเดิม)...
+                          </span>
+                          <span className="font-mono text-sm">{rollbackProgress}%</span>
+                        </div>
+                        <div className="w-full bg-[#1c0c0c] border border-red-500/15 rounded-full h-2.5 overflow-hidden p-0.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)]">
+                          <div
+                            className="bg-gradient-to-r from-red-600 to-red-500 h-full rounded-full transition-all duration-300 relative overflow-hidden"
+                            style={{ width: `${rollbackProgress}%` }}
+                          >
+                            <div 
+                              className="absolute inset-0" 
+                              style={{ 
+                                backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)',
+                                backgroundSize: '200% 100%',
+                                animation: 'shimmer-gold 2s infinite'
+                              }} 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Table View */}
                     {sessionLogsLoading ? (

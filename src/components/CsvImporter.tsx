@@ -18,6 +18,7 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -50,37 +51,73 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
     }
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!file) return;
 
     setIsUploading(true);
     setError('');
     setResult(null);
+    setUploadProgress(0);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-      const res = await fetch('/api/import', {
-        method: 'POST',
-        body: formData,
-      });
+    const xhr = new XMLHttpRequest();
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.error || 'Import failed');
+    // Track upload progress up to 90%
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentComplete = Math.round((event.loaded / event.total) * 100);
+        const scaledProgress = Math.min(Math.round(percentComplete * 0.9), 90);
+        setUploadProgress(scaledProgress);
       }
+    };
 
-      setResult(json.data);
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      onImportComplete?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการนำเข้า');
-    } finally {
+    // Keep progress bar moving slowly while server processes
+    let processingInterval: NodeJS.Timeout;
+    xhr.upload.onload = () => {
+      let currentProgress = 90;
+      processingInterval = setInterval(() => {
+        if (currentProgress < 98) {
+          currentProgress += 1;
+          setUploadProgress(currentProgress);
+        } else {
+          clearInterval(processingInterval);
+        }
+      }, 250);
+    };
+
+    xhr.onload = () => {
+      if (processingInterval) clearInterval(processingInterval);
+      setUploadProgress(100);
+      
+      // Delay disabling loading slightly so user sees 100% completion
+      setTimeout(() => {
+        setIsUploading(false);
+        try {
+          const json = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            setResult(json.data);
+            setFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            onImportComplete?.();
+          } else {
+            setError(json.error || 'Import failed');
+          }
+        } catch (err) {
+          setError('เกิดข้อผิดพลาดในการนำเข้า');
+        }
+      }, 400);
+    };
+
+    xhr.onerror = () => {
+      if (processingInterval) clearInterval(processingInterval);
       setIsUploading(false);
-    }
+      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย');
+    };
+
+    xhr.open('POST', '/api/import');
+    xhr.send(formData);
   };
 
   const [onedriveUrl, setOnedriveUrl] = useState('');
@@ -169,26 +206,43 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
       </div>
 
       {/* Upload Button */}
-      {file && (
+      {file && !isUploading && (
         <button
           onClick={handleUpload}
           disabled={isUploading}
-          className="mt-4 w-full rounded-xl bg-gradient-to-r from-accent-cyan to-accent-purple
-            px-6 py-3 font-semibold text-bg-primary transition-all duration-300
-            hover:shadow-[0_0_30px_rgba(0,240,255,0.3)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-4 w-full rounded-xl bg-gradient-to-r from-accent-gold to-accent-crimson
+            px-6 py-3 font-semibold text-[#fcf9f2] transition-all duration-300
+            hover:shadow-[0_0_30px_rgba(212,175,55,0.25)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
-          {isUploading ? (
-            <span className="flex items-center justify-center gap-2">
-              <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              กำลังนำเข้า...
-            </span>
-          ) : (
-            'นำเข้าข้อมูล'
-          )}
+          นำเข้าข้อมูลทหาร
         </button>
+      )}
+
+      {/* Upload Progress Bar */}
+      {isUploading && (
+        <div className="mt-4 space-y-2 animate-slide-up">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-text-secondary font-medium">
+              {uploadProgress < 90 ? 'กำลังส่งข้อมูลทหาร...' : uploadProgress < 100 ? 'กำลังประมวลผลเซกเตอร์ฐานข้อมูล...' : 'นำเข้าเสร็จสิ้น!'}
+            </span>
+            <span className="font-mono font-bold text-accent-gold">{uploadProgress}%</span>
+          </div>
+          <div className="w-full bg-[#160b0b] border border-accent-gold/15 rounded-full h-3 overflow-hidden p-0.5 shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]">
+            <div
+              className="bg-gradient-to-r from-accent-gold to-accent-crimson h-full rounded-full transition-all duration-300 relative overflow-hidden"
+              style={{ width: `${uploadProgress}%` }}
+            >
+              {/* Highlight shimmer animation */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" 
+                style={{ 
+                  backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                  animation: 'shimmer-gold 2s infinite'
+                }} 
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* OneDrive URL Input */}
