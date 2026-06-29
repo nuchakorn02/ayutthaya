@@ -252,15 +252,44 @@ export default function HomePage() {
       </div>
 
       {/* Leaderboard & Executive Board */}
-      <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-        {loading ? (
+      <div className="animate-slide-up relative" style={{ animationDelay: '0.3s' }}>
+        {/* Overlay Spinner for subsequent loads */}
+        {loading && players.length > 0 && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-2xl">
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-accent-gold/20 bg-[#0c0909]/95 px-6 py-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] animate-float">
+              <div className="relative h-8 w-8">
+                <div
+                  className="animate-spin-slow absolute inset-0 rounded-full border-2 border-transparent"
+                  style={{
+                    borderTopColor: '#d4af37',
+                    borderRightColor: 'rgba(212, 175, 55, 0.25)',
+                  }}
+                />
+                <div
+                  className="animate-spin-slow absolute inset-0.5 rounded-full border-2 border-transparent"
+                  style={{
+                    borderBottomColor: '#a61b1b',
+                    borderLeftColor: 'rgba(166, 27, 27, 0.25)',
+                    animationDirection: 'reverse',
+                    animationDuration: '1.2s',
+                  }}
+                />
+              </div>
+              <span className="text-[11px] font-bold tracking-widest text-accent-gold animate-pulse-glow">
+                กำลังอัปเดตข้อมูล...
+              </span>
+            </div>
+          </div>
+        )}
+
+        {loading && players.length === 0 ? (
           <LoadingSpinner />
         ) : (() => {
           const execPlayers = filteredPlayers.filter((p) => p.division === 'คณะผู้บริหาร');
           const normalPlayers = filteredPlayers.filter((p) => p.division !== 'คณะผู้บริหาร');
           
           return (
-            <>
+            <div className={loading ? 'opacity-30 pointer-events-none transition-opacity duration-300' : 'transition-opacity duration-300'}>
               {/* Executive Board */}
               <ExecutiveBoard players={execPlayers} />
 
@@ -268,7 +297,7 @@ export default function HomePage() {
               {(normalPlayers.length > 0 || (division !== 'คณะผู้บริหาร' && normalPlayers.length === 0)) && (
                 <Leaderboard players={normalPlayers} isSortedByScore={!division} rankChanges={rankChanges} />
               )}
-            </>
+            </div>
           );
         })()}
       </div>
