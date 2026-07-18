@@ -14,6 +14,7 @@ export default function HomePage() {
   const [division, setDivision] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [rankChanges, setRankChanges] = useState<Record<string, number>>({});
 
@@ -49,10 +50,13 @@ export default function HomePage() {
 
   const fetchPlayers = useCallback(async (currentDiv?: string) => {
     setLoading(true);
+    setFetchError(null);
     try {
       const url = currentDiv ? `/api/players?division=${encodeURIComponent(currentDiv)}` : '/api/players';
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const json = await res.json();
+      if (json.error) throw new Error(json.error);
       const playerList = json.data || [];
       setPlayers(playerList);
       
@@ -63,6 +67,7 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error('Failed to fetch players:', err);
+      setFetchError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูล');
       setPlayers([]);
       setLastUpdated(null);
     } finally {
@@ -73,6 +78,14 @@ export default function HomePage() {
   // Fetch when division changes
   useEffect(() => {
     fetchPlayers(division);
+  }, [division, fetchPlayers]);
+
+  // Auto-refresh every 5 minutes so viewers see latest scores without manual reload
+  useEffect(() => {
+    const autoRefresh = setInterval(() => {
+      fetchPlayers(division);
+    }, 5 * 60 * 1000);
+    return () => clearInterval(autoRefresh);
   }, [division, fetchPlayers]);
 
   // Local filtering and sorting logic for division and search
@@ -236,7 +249,7 @@ export default function HomePage() {
               </svg>
             </div>
             <div>
-              <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">ค้นหาค้นรบ</p>
+              <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary">คำค้นหา</p>
               <p className="font-mono text-xs font-bold text-text-primary">&quot;{search}&quot;</p>
             </div>
           </div>
@@ -282,8 +295,27 @@ export default function HomePage() {
           </div>
         )}
 
-        {loading && players.length === 0 ? (
+        {loading && players.length === 0 && !fetchError ? (
           <LoadingSpinner />
+        ) : fetchError ? (
+          <div className="glass-card flex flex-col items-center justify-center px-8 py-20 border border-accent-crimson/30">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent-crimson/10 border border-accent-crimson/30">
+              <svg className="h-8 w-8 text-accent-crimson" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="mb-2 text-lg font-bold text-accent-crimson">ไม่สามารถโหลดข้อมูลได้</h3>
+            <p className="text-center text-sm text-text-secondary mb-6">{fetchError}</p>
+            <button
+              onClick={() => fetchPlayers(division)}
+              className="glass-card flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-accent-gold border border-accent-gold/30 rounded-xl hover:border-accent-gold/60 hover:bg-accent-gold/5 transition-all hover:scale-105 cursor-pointer"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              ลองใหม่อีกครั้ง
+            </button>
+          </div>
         ) : (() => {
           const execPlayers = filteredPlayers.filter((p) => p.division === 'คณะผู้บริหาร');
           const normalPlayers = filteredPlayers.filter((p) => p.division !== 'คณะผู้บริหาร');

@@ -90,6 +90,21 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
     setFeedback(null);
 
     try {
+      // Check for duplicate player name before creating
+      const checkRes = await fetch('/api/players');
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        const existingPlayers: { player_name: string }[] = checkData.data || [];
+        const duplicate = existingPlayers.find(
+          (p) => p.player_name.toLowerCase() === playerName.trim().toLowerCase()
+        );
+        if (duplicate) {
+          setFeedback({ type: 'error', message: `ชื่อ "${playerName.trim()}" มีอยู่ในระบบแล้ว กรุณาตรวจสอบอีกครั้ง` });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const res = await fetch('/api/players', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -121,6 +136,7 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
       setIsSubmitting(false);
     }
   };
+
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

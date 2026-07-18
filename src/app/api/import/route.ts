@@ -643,13 +643,17 @@ export async function POST(request: NextRequest) {
           const baseTime = new Date('2026-05-27T00:00:00Z').getTime();
           const sequentialCreatedAt = new Date(baseTime + rowIndex * 1000).toISOString();
 
-          // Prepare payload
+          // Prepare payload — only update latest_change if score actually changed.
+          // This preserves latest_change values from manual PATCH operations when score is unchanged.
           const updatePayload: any = {
             total_score: totalScore,
             position: row.position,
-            latest_change: oldScore !== totalScore ? scoreDiff : 0,
             created_at: sequentialCreatedAt
           };
+
+          if (oldScore !== totalScore) {
+            updatePayload.latest_change = scoreDiff;
+          }
 
           if (isDivisionTransfer) {
             updatePayload.division = division;

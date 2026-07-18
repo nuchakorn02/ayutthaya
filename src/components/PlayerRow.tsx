@@ -4,6 +4,36 @@ import { useState, useEffect } from 'react';
 import { Player, ScoreHistory } from '@/lib/types';
 import AnimatedCounter from '@/components/AnimatedCounter';
 
+/** Small sub-component so each chart dot can manage its own hover state without violating Rules of Hooks */
+function ChartDot({ cx, cy, val, date, chartHeight }: { cx: number; cy: number; val: number; date: string; chartHeight: number }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <g
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ cursor: 'pointer' }}
+    >
+      {/* Invisible larger hit area */}
+      <circle cx={cx} cy={cy} r={10} fill="transparent" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={hovered ? 5.5 : 3.5}
+        fill={hovered ? '#fbbf24' : '#0a0a1a'}
+        stroke="#fbbf24"
+        strokeWidth={2}
+        style={{ transition: 'r 0.2s ease, fill 0.2s ease' }}
+      />
+      <text x={cx} y={cy - 8} textAnchor="middle" className="font-mono text-[9px] font-bold fill-amber-300">
+        {val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+      </text>
+      <text x={cx} y={chartHeight - 2} textAnchor="middle" className="text-[8px] font-medium fill-text-secondary">
+        {date}
+      </text>
+    </g>
+  );
+}
+
 interface PlayerRowProps {
   player: Player;
   rank: number;
@@ -62,7 +92,7 @@ const divisionColors: Record<string, { bg: string; text: string; border: string 
   'กองพระตำรวจหลวง': { bg: 'bg-amber-800/15', text: 'text-amber-500', border: 'border-amber-700/30 shadow-[0_0_8px_rgba(217,119,6,0.15)]' },
   'กองทัพที่ 1 ปัญจะซันยะ': { bg: 'bg-slate-400/15', text: 'text-slate-300', border: 'border-slate-500/30' },
   'กองทัพที่ 2 วัชรนาถ': { bg: 'bg-rose-600/15', text: 'text-rose-400', border: 'border-rose-500/30 shadow-[0_0_8px_rgba(225,29,72,0.15)]' },
-  'กองทัพที่ 3 ปุณฑริก': { bg: 'bg-violet-600/15', text: 'text-violet-400', border: 'border-violet-500/30' },
+  'กองทัพที่ 3 ปุณฑริก': { bg: 'bg-emerald-600/15', text: 'text-emerald-400', border: 'border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.15)]' },
   'กองทัพที่ 4 เกาโมทก': { bg: 'bg-sky-500/15', text: 'text-sky-400', border: 'border-sky-500/30 shadow-[0_0_8px_rgba(14,165,233,0.15)]' },
 };
 
@@ -118,6 +148,13 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
 
   const divColor = divisionColors[player.division] || divisionColors['กองทัพธรณินพิทักษ์'];
 
+  // Reset history state whenever the player changes (prevents stale cache between rows)
+  useEffect(() => {
+    setHistory([]);
+    setHasLoaded(false);
+    setIsExpanded(false);
+  }, [player.id]);
+
   useEffect(() => {
     if (isExpanded && !hasLoaded) {
       setLoading(true);
@@ -126,10 +163,15 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
         .then((resData) => {
           if (resData.data) {
             setHistory(resData.data);
+          } else {
+            setHistory([]);
           }
           setHasLoaded(true);
         })
-        .catch((err) => console.error('Error fetching player history:', err))
+        .catch((err) => {
+          console.error('Error fetching player history:', err);
+          setHasLoaded(true); // mark as loaded even on error so we show empty state
+        })
         .finally(() => setLoading(false));
     }
   }, [isExpanded, player.id, hasLoaded]);
@@ -193,18 +235,11 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
           {/* Outline path */}
           <path d={pathD} fill="none" stroke="#fbbf24" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
 
-          {/* Points */}
+          {/* Points — each dot is its own component to safely use useState for hover */}
           {points.map((p, idx) => (
-            <g key={idx} className="group/dot">
-              <circle cx={p.x} cy={p.y} r={3.5} fill="#0a0a1a" stroke="#fbbf24" strokeWidth={2} className="transition-all duration-300 group-hover/dot:r-5" />
-              <text x={p.x} y={p.y - 8} textAnchor="middle" className="font-mono text-[9px] font-bold fill-amber-300">
-                {p.val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-              </text>
-              <text x={p.x} y={height - 2} textAnchor="middle" className="text-[8px] font-medium fill-text-secondary">
-                {p.date}
-              </text>
-            </g>
+            <ChartDot key={idx} cx={p.x} cy={p.y} val={p.val} date={p.date} chartHeight={height} />
           ))}
+
         </svg>
       </div>
     );
@@ -255,7 +290,22 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
 
   const drawNextRankProgress = () => {
     const score = player.total_score;
-    const isPolice = player.division === 'กองพระตำรวจหลวง';
+    const division = player.division;
+
+    // Fixed-position divisions don't use score-based rank milestones — show honor badge instead
+    const fixedDivisions = ['คณะผู้บริหาร', 'กองทัพมหาเสือพิทักษ์', 'กองทัพธรณินพิทักษ์', 'กองทัพอาทมาต'];
+    if (fixedDivisions.includes(division)) {
+      return (
+        <div className="mt-4 p-4 rounded-xl border border-accent-gold/20 bg-accent-gold/5 text-center w-full max-w-md mx-auto">
+          <p className="text-xs font-bold text-accent-gold uppercase tracking-wider">🏅 กองพิเศษ — ไม่ใช้ระบบยศตามคะแนน</p>
+          <p className="text-[10px] text-text-secondary mt-1">
+            กองนี้มีตำแหน่งพิเศษเฉพาะสังกัด คะแนนปัจจุบัน: <span className="font-mono font-bold text-accent-gold-glowing">{score.toLocaleString()}</span> แต้ม
+          </p>
+        </div>
+      );
+    }
+
+    const isPolice = division === 'กองพระตำรวจหลวง';
 
     // Ranks and their milestones
     const milestones = [
@@ -316,6 +366,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
       </div>
     );
   };
+
 
   return (
     <>

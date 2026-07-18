@@ -321,6 +321,14 @@ export default function AdminPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
+
+  const showToast = (type: 'success' | 'error' | 'warning', message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   // Import sessions delta history state
   const [importSessions, setImportSessions] = useState<ImportSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<ImportSession | null>(null);
@@ -345,12 +353,12 @@ export default function AdminPage() {
           const json = await res.json();
           throw new Error(json.error || 'ลบผู้เล่นไม่สำเร็จ');
         }
-        alert('ลบผู้เล่นเรียบร้อยแล้ว!');
+        showToast('success', `ลบ "${player.player_name}" ออกจากระบบเรียบร้อยแล้ว`);
         fetchPlayers();
         fetchTopIncreases();
         fetchLogs();
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบผู้เล่น');
+        showToast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบผู้เล่น');
       } finally {
         setIsDeleting(false);
       }
@@ -373,13 +381,13 @@ export default function AdminPage() {
         const json = await res.json();
         throw new Error(json.error || 'ล้างฐานข้อมูลไม่สำเร็จ');
       }
-      alert('ล้างฐานข้อมูลสำเร็จเรียบร้อยแล้ว!');
+      showToast('success', 'ล้างฐานข้อมูลสำเร็จเรียบร้อยแล้ว!');
       fetchPlayers();
       fetchTopIncreases();
       fetchLogs();
       fetchImportSessions();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการล้างฐานข้อมูล');
+      showToast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการล้างฐานข้อมูล');
     } finally {
       setIsResetting(false);
     }
@@ -405,6 +413,9 @@ export default function AdminPage() {
       setRollbackProgress(Math.min(progress, 96));
     }, 150);
 
+    let rollbackSuccess = false;
+    let rollbackError: string | null = null;
+
     try {
       const res = await fetch(`/api/admin/imports/${session.id}/rollback`, {
         method: 'POST',
@@ -417,10 +428,10 @@ export default function AdminPage() {
         throw new Error(json.error || 'ย้อนกลับเซสชันไม่สำเร็จ');
       }
 
-      // Small delay to let user see 100% completion
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      rollbackSuccess = true;
+      // Small delay to let user see 100% completion before hiding
+      await new Promise((resolve) => setTimeout(resolve, 700));
 
-      alert('ย้อนกลับข้อมูลในเซสชันนี้สำเร็จเรียบร้อยแล้ว!');
       setSelectedSession(null);
       setSessionLogs([]);
       fetchPlayers();
@@ -430,10 +441,16 @@ export default function AdminPage() {
     } catch (err) {
       clearInterval(interval);
       setRollbackProgress(0);
-      alert(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการย้อนกลับ');
+      rollbackError = err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการย้อนกลับ';
     } finally {
+      // Only reset state after the delay above has completed
       setRollingBackSessionId(null);
       setRollbackProgress(0);
+      if (rollbackSuccess) {
+        showToast('success', `ย้อนกลับเซสชัน "${session.filename}" สำเร็จเรียบร้อยแล้ว!`);
+      } else if (rollbackError) {
+        showToast('error', rollbackError);
+      }
     }
   };
 
@@ -535,6 +552,24 @@ export default function AdminPage() {
     fetchImportSessions();
   }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchImportSessions]);
 
+  // Auto-refresh every 5 minutes to keep data up-to-date
+  useEffect(() => {
+    const autoRefresh = setInterval(() => {
+      fetchPlayers();
+      fetchTopIncreases();
+      fetchLogs();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(autoRefresh);
+  }, [fetchPlayers, fetchTopIncreases, fetchLogs]);
+
+  const handleRefreshAll = () => {
+    fetchPlayers();
+    fetchTopIncreases();
+    fetchLogs();
+    fetchImportSessions();
+    showToast('success', 'รีโหลดข้อมูลทั้งหมดแล้ว');
+  };
+
   useEffect(() => {
     if (selectedSession) {
       fetchSessionLogs(selectedSession.id);
@@ -634,7 +669,7 @@ export default function AdminPage() {
     'กองพระตำรวจหลวง': 'text-amber-500',
     'กองทัพที่ 1 ปัญจะซันยะ': 'text-slate-300',
     'กองทัพที่ 2 วัชรนาถ': 'text-rose-400',
-    'กองทัพที่ 3 ปุณฑริก': 'text-violet-400',
+    'กองทัพที่ 3 ปุณฑริก': 'text-emerald-400',
     'กองทัพที่ 4 เกาโมทก': 'text-sky-400',
   };
 
@@ -692,6 +727,45 @@ export default function AdminPage() {
       {/* Navigation */}
       <AdminNav />
 
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 z-[100] flex items-start gap-3 rounded-2xl border px-5 py-4 shadow-[0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-md animate-slide-up max-w-sm ${
+            toast.type === 'success'
+              ? 'border-green-500/30 bg-[#0c0c1e]/95 text-green-400'
+              : toast.type === 'warning'
+              ? 'border-accent-gold/30 bg-[#0c0c1e]/95 text-accent-gold'
+              : 'border-accent-crimson/30 bg-[#0c0c1e]/95 text-accent-crimson'
+          }`}
+        >
+          <div className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full ${
+            toast.type === 'success' ? 'bg-green-500/15' : toast.type === 'warning' ? 'bg-accent-gold/15' : 'bg-accent-crimson/15'
+          }`}>
+            {toast.type === 'success' ? (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : toast.type === 'warning' ? (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+          </div>
+          <p className="text-sm font-semibold leading-snug">{toast.message}</p>
+          <button
+            onClick={() => setToast(null)}
+            className="ml-auto flex-shrink-0 rounded-lg p-1 opacity-60 hover:opacity-100 transition-opacity cursor-pointer"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
       {/* Part 2: Command Analytics Dashboard */}
       <section className="mb-10 animate-slide-up" style={{ animationDelay: '0.05s' }}>
         <div className="mb-6 flex items-center gap-3">
@@ -757,7 +831,8 @@ export default function AdminPage() {
                 const pct = maxDivScore > 0 ? (d.totalScore / maxDivScore) * 100 : 0;
                 const accentColor = divisionColors[d.name] || 'text-text-secondary';
                 const barColor = d.name === 'กองทัพมหาเสือพิทักษ์' || d.name === 'กองพระตำรวจหลวง' ? 'bg-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.3)]' :
-                                 d.name === 'กองทัพธรณินพิทักษ์' || d.name === 'กองทัพที่ 3 ปุณฑริก' ? 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.3)]' :
+                                 d.name === 'กองทัพธรณินพิทักษ์' ? 'bg-violet-500 shadow-[0_0_8px_rgba(139,92,246,0.3)]' :
+                                 d.name === 'กองทัพที่ 3 ปุณฑริก' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' :
                                  d.name === 'กองทัพอาทมาต' ? 'bg-zinc-500 shadow-[0_0_8px_rgba(113,113,122,0.3)]' :
                                  d.name === 'กองทัพที่ 1 ปัญจะซันยะ' ? 'bg-slate-400 shadow-[0_0_8px_rgba(148,163,184,0.3)]' :
                                  d.name === 'กองทัพที่ 2 วัชรนาถ' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.3)]' :
@@ -942,6 +1017,21 @@ export default function AdminPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
+            {/* Refresh All Button */}
+            <button
+              onClick={handleRefreshAll}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5
+                px-4 py-2 text-xs font-bold text-text-secondary tracking-wider uppercase
+                transition-all duration-300 hover:border-white/25 hover:bg-white/10
+                hover:text-text-primary cursor-pointer disabled:opacity-50"
+            >
+              <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              รีโหลดข้อมูล
+            </button>
+
             {/* Quick Add Player Button */}
             <button
               onClick={() => setIsAddModalOpen(true)}
