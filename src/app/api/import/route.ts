@@ -784,18 +784,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Send Discord Webhook notification in background
-    const importTemplate = process.env.DISCORD_IMPORT_TEMPLATE || 
-      '📁 **นำเข้าไฟล์กำลังพลสำเร็จ!**\n📄 ชื่อไฟล์: `{filename}`\n➕ เพิ่มกำลังพลใหม่: `+{imported} นาย`\n🔄 ปรับปรุงคะแนนสะสม: `{updated} นาย`\n⚠️ รายการขัดข้อง: `{errors} รายการ`';
-    
-    const importContent = importTemplate
-      .replace(/{filename}/g, fileName || 'ไม่ระบุชื่อไฟล์')
-      .replace(/{imported}/g, String(imported))
-      .replace(/{updated}/g, String(updated))
-      .replace(/{errors}/g, String(errors.length));
+    (async () => {
+      try {
+        const fields = [
+          { name: '📄 ชื่อไฟล์ทำเนียบ', value: `\`${fileName || 'OneDrive Remote File'}\``, inline: true },
+          { name: '➕ เพิ่มกำลังพลใหม่', value: `\`+${imported}\` นาย`, inline: true },
+          { name: '🔄 อัปเดตแต้มสะสม', value: `\`${updated}\` นาย`, inline: true },
+        ];
 
-    sendDiscordWebhook({
-      content: importContent
-    }).catch(err => console.error('Failed to send Discord webhook:', err));
+        if (errors.length > 0) {
+          fields.push({ name: '⚠️ ข้อสังเกต / รายการขัดข้อง', value: `\`${errors.length}\` รายการ (กรุณาเช็คในหน้าแผงควบคุมแอดมิน)`, inline: false });
+        }
+
+        const embed = {
+          title: '📁 นำเข้าไฟล์ทำเนียบทหารรักษาพระองค์สำเร็จ!',
+          color: 13938487, // Gold #D4AF37
+          fields: fields,
+          timestamp: new Date().toISOString(),
+          footer: {
+            text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+            icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
+          }
+        };
+
+        await sendDiscordWebhook({
+          embeds: [embed]
+        });
+      } catch (err) {
+        console.error('Failed to send Discord webhook:', err);
+      }
+    })();
 
     return NextResponse.json({
       data: { imported, updated, errors, import_id: importId },

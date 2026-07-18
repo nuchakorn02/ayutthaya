@@ -131,6 +131,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (data) {
+      const { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } = require('@/lib/discord');
+      const newPlayer = data as Player;
+
+      // Send webhook in background so API response is instant
+      (async () => {
+        try {
+          const avatarUrl = await getRobloxAvatarUrl(newPlayer.player_name);
+          const embedColor = DIVISION_EMBED_COLORS[newPlayer.division] || 1096065; // Default Emerald #10B981
+
+          const embed: any = {
+            title: '💂 ลงทะเบียนกำลังพลรายใหม่สำเร็จ!',
+            color: embedColor,
+            fields: [
+              { name: '💂 ชื่อ Roblox', value: `[${newPlayer.player_name}](https://www.roblox.com/users/profile?username=${encodeURIComponent(newPlayer.player_name)})`, inline: true },
+              { name: '🛡️ กองสังกัด', value: newPlayer.division, inline: true },
+              { name: '🎖️ ยศ/ตำแหน่ง', value: newPlayer.position || 'ไม่มีตำแหน่ง', inline: true },
+              { name: '📈 คะแนนเริ่มต้น', value: `\`${newPlayer.total_score}\` แต้ม`, inline: false }
+            ],
+            timestamp: new Date().toISOString(),
+            footer: {
+              text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+              icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
+            }
+          };
+
+          if (avatarUrl) {
+            embed.thumbnail = { url: avatarUrl };
+          }
+
+          await sendDiscordWebhook({
+            embeds: [embed]
+          });
+        } catch (webhookErr) {
+          console.error('[Discord Webhook Exception] Failed to send new player notification:', webhookErr);
+        }
+      })();
+    }
+
     return NextResponse.json({ data } satisfies ApiResponse<Player>, { status: 201 });
   } catch (err) {
     console.error('Unexpected error in POST /api/players:', err);

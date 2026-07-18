@@ -121,29 +121,55 @@ export async function PATCH(
     }
 
     if (scoreDiff !== 0) {
+      // Import helpers
+      const { getRobloxAvatarUrl, DIVISION_EMBED_COLORS } = require('@/lib/discord');
+
       const diffSign = scoreDiff > 0 ? '+' : '';
-      let updateTemplate = process.env.DISCORD_UPDATE_TEMPLATE ||
-        '⚔️ **ปรับปรุงแต้มสะสมรายบุคคลสำเร็จ!**\n💂 ทหาร: `{name}`\n🛡️ กองสังกัด: `{division}`\n🎖️ ยศ/ตำแหน่ง: `{position}`\n📈 คะแนนสะสม: `{old_score}` ➡️ `{new_score}` (เปลี่ยนแปลง: `{score_diff}` แต้ม)';
+      const playerName = existingPlayer.player_name;
+      const divisionName = existingPlayer.division;
+      const playerPos = (updatedPlayer as any).position || 'ไม่มีตำแหน่ง';
       
-      if (reason) {
-        updateTemplate += '\n📝 เหตุผล: `{reason}`';
-      }
+      // Determine embed color from division or default to gold
+      const embedColor = DIVISION_EMBED_COLORS[divisionName] || 13938487; // Default Gold #D4AF37
 
-      let updateContent = updateTemplate
-        .replace(/{name}/g, existingPlayer.player_name)
-        .replace(/{division}/g, existingPlayer.division)
-        .replace(/{position}/g, (updatedPlayer as any).position || 'ไม่มีตำแหน่ง')
-        .replace(/{old_score}/g, String(oldScore))
-        .replace(/{new_score}/g, String(newScore))
-        .replace(/{score_diff}/g, `${diffSign}${scoreDiff}`);
+      // Run background fetching for avatar and send webhook asynchronously
+      (async () => {
+        try {
+          const avatarUrl = await getRobloxAvatarUrl(playerName);
 
-      if (reason) {
-        updateContent = updateContent.replace(/{reason}/g, reason.trim());
-      }
+          const fields = [
+            { name: '💂 กำลังพล', value: `[${playerName}](https://www.roblox.com/users/profile?username=${encodeURIComponent(playerName)})`, inline: true },
+            { name: '🛡️ กองสังกัด', value: divisionName, inline: true },
+            { name: '🎖️ ยศ/ตำแหน่ง', value: playerPos, inline: true },
+            { name: '📈 คะแนนสะสม', value: `\`${oldScore}\` ➡️ \`${newScore}\` (**${diffSign}${scoreDiff}** แต้ม)`, inline: false },
+          ];
 
-      sendDiscordWebhook({
-        content: updateContent
-      }).catch(err => console.error('Failed to send Discord webhook:', err));
+          if (reason) {
+            fields.push({ name: '📝 เหตุผลการปรับปรุง', value: reason.trim(), inline: false });
+          }
+
+          const embed: any = {
+            title: scoreDiff > 0 ? '📈 มอบแต้มกิจกรรมกำลังรบสำเร็จ!' : '📉 หักแต้มสะสมกำลังรบ!',
+            color: embedColor,
+            fields: fields,
+            timestamp: new Date().toISOString(),
+            footer: {
+              text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+              icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png' // Default Roblox shield icon
+            }
+          };
+
+          if (avatarUrl) {
+            embed.thumbnail = { url: avatarUrl };
+          }
+
+          await sendDiscordWebhook({
+            embeds: [embed]
+          });
+        } catch (webhookErr) {
+          console.error('[Discord Webhook Exception] Failed in background sender:', webhookErr);
+        }
+      })();
     }
 
     return NextResponse.json({ data: updatedPlayer as Player } satisfies ApiResponse<Player>);

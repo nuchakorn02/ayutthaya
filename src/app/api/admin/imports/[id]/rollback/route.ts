@@ -152,6 +152,35 @@ export async function POST(
       );
     }
 
+    // Send Discord Webhook notification in background
+    (async () => {
+      try {
+        const { sendDiscordWebhook } = require('@/lib/discord');
+
+        const embed = {
+          title: '↩️ ดำเนินการย้อนกลับข้อมูล (Rollback) สำเร็จ!',
+          description: 'แอดมินได้ทำการยกเลิกแต้มกิจกรรมและผู้เล่นที่เพิ่มใหม่จากเซสชันนำเข้าด้านล่างนี้แล้ว',
+          color: 10034459, // Crimson Red #991B1B
+          fields: [
+            { name: '📄 ไฟล์ที่ยกเลิก', value: `\`${session.filename}\``, inline: true },
+            { name: '🕒 วันที่นำเข้าครั้งแรก', value: new Date(session.created_at).toLocaleString('th-TH', { hour12: false }), inline: true },
+            { name: '📋 ผลลัพธ์', value: 'คะแนนสะสมของทหารทุกคนถูกย้อนกลับ และรายชื่อทหารใหม่ที่นำเข้าจากเซสชันนี้ถูกลบเรียบร้อยแล้ว', inline: false }
+          ],
+          timestamp: new Date().toISOString(),
+          footer: {
+            text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+            icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
+          }
+        };
+
+        await sendDiscordWebhook({
+          embeds: [embed]
+        });
+      } catch (err) {
+        console.error('Failed to send Rollback Discord Webhook:', err);
+      }
+    })();
+
     return NextResponse.json({
       data: { success: true }
     } satisfies ApiResponse<{ success: boolean }>);
