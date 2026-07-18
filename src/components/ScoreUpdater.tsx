@@ -17,6 +17,18 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [thresholds, setThresholds] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/settings/ranks')
+      .then(res => res.json())
+      .then(data => {
+        if (data.thresholds) {
+          setThresholds(data.thresholds.sort((a: any, b: any) => b.score - a.score));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (player) {
@@ -61,6 +73,19 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
     const isPolice = player.division === 'กองพระตำรวจหลวง';
     
     // Score based rank assignment (excluding ครูฝึก)
+    if (thresholds.length > 0) {
+      for (const t of thresholds) {
+        if (score >= t.score) {
+          setNewPosition(isPolice ? t.policeTitle : t.guardTitle);
+          return;
+        }
+      }
+      const last = thresholds[thresholds.length - 1];
+      setNewPosition(isPolice ? last.policeTitle : last.guardTitle);
+      return;
+    }
+
+    // Fallback if settings are not loaded
     if (score >= 600) {
       setNewPosition(isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen');
     } else if (score >= 315) {
@@ -117,23 +142,29 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
     }
   };
 
-  const handleDelete = async () => {
-    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้เล่น "${player.player_name}" ออกจากทำเนียบรบ? การดำเนินการนี้ไม่สามารถย้อนกลับได้`)) {
+  const handleRetire = async () => {
+    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการให้ "${player.player_name}" พ้นสภาพ/ลาออก?\nข้อมูลคะแนนจะยังถูกเก็บไว้ แต่ชื่อจะถูกซ่อนจากทำเนียบหลัก`)) {
       setIsDeleting(true);
       setFeedback(null);
 
       try {
         const res = await fetch(`/api/players/${player.id}`, {
-          method: 'DELETE',
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            total_score: -999,
+            division: 'ปลดประจำการ',
+            reason: 'พ้นสภาพ/ลาออก (Manual)'
+          }),
         });
 
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error || 'Delete failed');
+          throw new Error(data.error || 'เปลี่ยนสถานะไม่สำเร็จ');
         }
 
-        setFeedback({ type: 'success', message: 'ลบชื่อผู้เล่นออกจากระบบแล้ว!' });
+        setFeedback({ type: 'success', message: 'เปลี่ยนสถานะเป็นพ้นสภาพเรียบร้อยแล้ว!' });
         setTimeout(() => {
           onUpdate();
           onClose();
@@ -141,7 +172,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
       } catch (err) {
         setFeedback({
           type: 'error',
-          message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบผู้เล่น',
+          message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ',
         });
       } finally {
         setIsDeleting(false);
@@ -281,17 +312,17 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
               </button>
             </div>
 
-            {/* Danger Zone: Delete Player */}
+            {/* Danger Zone: Retire Player */}
             <div className="border-t border-white/5 mt-2 pt-3">
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={handleRetire}
                 disabled={isSubmitting || isDeleting}
                 className="w-full rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-2.5
                   text-xs font-bold text-red-400 transition-all duration-300
                   hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300 cursor-pointer disabled:opacity-50"
               >
-                {isDeleting ? 'กำลังลบชื่อ...' : '⚠️ ลบชื่อผู้เล่นคนนี้ออกจากระบบ'}
+                {isDeleting ? 'กำลังเปลี่ยนสถานะ...' : '⚠️ เปลี่ยนสถานะทหารคนนี้ให้พ้นสภาพ/ลาออก'}
               </button>
             </div>
           </div>

@@ -118,6 +118,34 @@ function matchDivisionFuzzy(valStr: string): string | null {
   return null;
 }
 
+import fs from 'fs';
+import path from 'path';
+
+function getRankSettings() {
+  const settingsPath = path.join(process.cwd(), 'src', 'data', 'rankSettings.json');
+  try {
+    if (fs.existsSync(settingsPath)) {
+      const data = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      if (data && Array.isArray(data.thresholds) && data.thresholds.length > 0) {
+        // Sort by score descending to ensure correct evaluation order
+        return data.thresholds.sort((a: any, b: any) => b.score - a.score);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load rank settings', e);
+  }
+  return [
+    { score: 600, policeTitle: 'พันตำรวจหลวง | Royal Police Colonel', guardTitle: 'นายพันเวร | Battalion Commander of Guardsmen' },
+    { score: 315, policeTitle: 'นายกองตำรวจหลวง | Royal Police Battalion Commander', guardTitle: 'นายกองเวร | Company Head Guardsmen' },
+    { score: 210, policeTitle: 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer', guardTitle: 'นายหมวดเวร | Platoon Head Guardsmen' },
+    { score: 110, policeTitle: 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader', guardTitle: 'นายหมู่เวร | Squad Head Guardsmen' },
+    { score: 60, policeTitle: 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper', guardTitle: 'พลทหารยามอาวุโส | Senior Guardsmen' },
+    { score: 45, policeTitle: 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper', guardTitle: 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen' },
+    { score: 20, policeTitle: 'พลประจำการตำรวจหลวง | Active Royal Police Trooper', guardTitle: 'พลทหารยาม | Guardsmen' },
+    { score: 0, policeTitle: 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)', guardTitle: 'พลอาสาสมัครทหารยาม | Junior Guardsmen' }
+  ];
+}
+
 function calculateDefaultPosition(score: number, division: string): string {
   if (division === 'คณะผู้บริหาร') {
     return 'คณะผู้บริหารส่วนกลาง';
@@ -133,15 +161,14 @@ function calculateDefaultPosition(score: number, division: string): string {
   }
 
   const isPolice = division === 'กองพระตำรวจหลวง';
+  const thresholds = getRankSettings();
 
-  if (score >= 600) return isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen';
-  if (score >= 315) return isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen';
-  if (score >= 210) return isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen';
-  if (score >= 110) return isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen';
-  if (score >= 60) return isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen';
-  if (score >= 45) return isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen';
-  if (score >= 20) return isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen';
-  return isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
+  for (const t of thresholds) {
+    if (score >= t.score) return isPolice ? t.policeTitle : t.guardTitle;
+  }
+  
+  const last = thresholds[thresholds.length - 1];
+  return isPolice ? last.policeTitle : last.guardTitle;
 }
 
 
@@ -637,7 +664,12 @@ export async function POST(request: NextRequest) {
           processedIds.add(existingPlayer.id);
 
           const oldScore = existingPlayer.total_score;
-          const scoreDiff = totalScore - oldScore;
+          let scoreDiff = totalScore - oldScore;
+          
+          // Fix for restoring retired players: prevent massive scoreDiff (+1099)
+          if (oldScore === -999) {
+            scoreDiff = 0;
+          }
 
           // Generate a sequential created_at to preserve exact Excel ordering
           const baseTime = new Date('2026-05-27T00:00:00Z').getTime();
@@ -741,21 +773,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Clear out old players from database who are NOT in the spreadsheet
-    const idsToDelete = existingDbPlayers
+    // 2. Soft delete players who are not in the uploaded spreadsheet.
+    const playersToSoftDelete = existingDbPlayers
       .filter((p) => !processedIds.has(p.id))
-      .map((p) => p.id);
+      .filter((p) => p.division !== 'ปลดประจำการ'); // Don't re-delete
 
-    if (idsToDelete.length > 0) {
-      console.log(`Deleting ${idsToDelete.length} players not present in spreadsheet...`);
-      const { error: deleteOldError } = await adminClient
+    for (const p of playersToSoftDelete) {
+      const { error: updateErr } = await adminClient
         .from('players')
-        .delete()
-        .in('id', idsToDelete);
+        .update({ division: 'ปลดประจำการ' })
+        .eq('id', p.id);
 
-      if (deleteOldError) {
-        console.error('Failed to delete players not in sheet:', deleteOldError);
-        errors.push(`ล้มเหลวในการลบรายชื่อทหารที่ไม่มีอยู่ในไฟล์: ${deleteOldError.message}`);
+      if (!updateErr) {
+        // Log this soft delete so Rollback knows their original division
+        logsToInsert.push({
+          import_id: importId,
+          player_name: p.player_name,
+          division: p.division, // Save original division here!
+          old_score: p.total_score,
+          new_score: -999, // Magic flag indicating soft delete
+          score_diff: 0
+        });
       }
     }
 
@@ -787,27 +825,24 @@ export async function POST(request: NextRequest) {
     (async () => {
       try {
         const fields = [
-          { name: '📄 ชื่อไฟล์ทำเนียบ', value: `\`${fileName || 'OneDrive Remote File'}\``, inline: true },
-          { name: '➕ เพิ่มกำลังพลใหม่', value: `\`+${imported}\` นาย`, inline: true },
-          { name: '🔄 อัปเดตแต้มสะสม', value: `\`${updated}\` นาย`, inline: true },
+          { name: '💂 ทหารใหม่เข้ากรม', value: `\`+${imported}\` คน`, inline: true },
+          { name: '📈 คนที่โดนปรับแต้มรอบนี้', value: `\`${updated}\` คน`, inline: true },
         ];
 
-        if (errors.length > 0) {
-          fields.push({ name: '⚠️ ข้อสังเกต / รายการขัดข้อง', value: `\`${errors.length}\` รายการ (กรุณาเช็คในหน้าแผงควบคุมแอดมิน)`, inline: false });
-        }
-
         const embed = {
-          title: '📁 นำเข้าไฟล์ทำเนียบทหารรักษาพระองค์สำเร็จ!',
+          title: '📢 อัปเดตแต้มล่าสุดมาแล้วจ้า!',
+          description: 'แอดมินจัดการปรับแต้มและอัปเดตรายชื่อให้เรียบร้อยแล้วน้า ทุกคนสามารถเข้าไปเช็คยศและคะแนนล่าสุดของตัวเองที่หน้าเว็บได้เลย!',
           color: 13938487, // Gold #D4AF37
           fields: fields,
           timestamp: new Date().toISOString(),
           footer: {
-            text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+            text: 'ระบบแต้มกรมทหารราชวัลลภ',
             icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
           }
         };
 
         await sendDiscordWebhook({
+          content: process.env.DISCORD_IMPORT_TEMPLATE || '',
           embeds: [embed]
         });
       } catch (err) {

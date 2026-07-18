@@ -37,11 +37,11 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { total_score, position, reason } = body;
+    const { total_score, position, reason, division } = body;
 
-    if (total_score === undefined && position === undefined) {
+    if (total_score === undefined && position === undefined && division === undefined) {
       return NextResponse.json(
-        { error: 'total_score or position is required.' } satisfies ApiResponse<never>,
+        { error: 'total_score, position, or division is required.' } satisfies ApiResponse<never>,
         { status: 400 }
       );
     }
@@ -77,6 +77,10 @@ export async function PATCH(
 
     if (position !== undefined) {
       updatePayload.position = position ? position.trim() : null;
+    }
+
+    if (division !== undefined) {
+      updatePayload.division = division ? division.trim() : 'ไม่ทราบสังกัด';
     }
 
     // 2. Update player
@@ -154,7 +158,7 @@ export async function PATCH(
             fields: fields,
             timestamp: new Date().toISOString(),
             footer: {
-              text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+              text: 'ระบบแต้มกรมทหารราชวัลลภ',
               icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png' // Default Roblox shield icon
             }
           };

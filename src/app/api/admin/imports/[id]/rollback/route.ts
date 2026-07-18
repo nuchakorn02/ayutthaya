@@ -82,12 +82,13 @@ export async function POST(
 
     // 3. Revert each log entry
     for (const log of logs || []) {
-      // Find player by name and division
+      // Find player by name and division (or 'ปลดประจำการ' if it was a soft delete)
+      const targetDivision = log.new_score === -999 ? 'ปลดประจำการ' : log.division;
       const { data: player, error: playerError } = await adminClient
         .from('players')
         .select('*')
         .eq('player_name', log.player_name)
-        .eq('division', log.division)
+        .eq('division', targetDivision)
         .maybeSingle();
 
       if (playerError) {
@@ -96,7 +97,16 @@ export async function POST(
       }
 
       if (player) {
-        if (log.old_score === 0) {
+        if (log.new_score === -999) {
+          // This player was soft-deleted. Restore their original division.
+          const { error: restoreError } = await adminClient
+            .from('players')
+            .update({ division: log.division })
+            .eq('id', player.id);
+          if (restoreError) {
+            console.error(`Failed to restore player ${log.player_name} division during rollback:`, restoreError);
+          }
+        } else if (log.old_score === 0) {
           // This player was created in this import. We should delete them.
           const { error: deleteError } = await adminClient
             .from('players')
@@ -158,17 +168,15 @@ export async function POST(
         const { sendDiscordWebhook } = require('@/lib/discord');
 
         const embed = {
-          title: '↩️ ดำเนินการย้อนกลับข้อมูล (Rollback) สำเร็จ!',
-          description: 'แอดมินได้ทำการยกเลิกแต้มกิจกรรมและผู้เล่นที่เพิ่มใหม่จากเซสชันนำเข้าด้านล่างนี้แล้ว',
+          title: '⚠️ แจ้งยกเลิกแต้มรอบล่าสุดจ้า',
+          description: 'แอดมินขอยกเลิกการปรับแต้มของรอบที่แล้วน้า ตอนนี้ดึงคะแนนของทุกคนกลับไปเป็นแบบเดิมก่อนหน้านี้เรียบร้อยแล้วครับ',
           color: 10034459, // Crimson Red #991B1B
           fields: [
-            { name: '📄 ไฟล์ที่ยกเลิก', value: `\`${session.filename}\``, inline: true },
-            { name: '🕒 วันที่นำเข้าครั้งแรก', value: new Date(session.created_at).toLocaleString('th-TH', { hour12: false }), inline: true },
-            { name: '📋 ผลลัพธ์', value: 'คะแนนสะสมของทหารทุกคนถูกย้อนกลับ และรายชื่อทหารใหม่ที่นำเข้าจากเซสชันนี้ถูกลบเรียบร้อยแล้ว', inline: false }
+            { name: '📋 สถานะ', value: 'คะแนนและยศกลับไปเป็นเหมือนเดิมแล้วจ้า', inline: false }
           ],
           timestamp: new Date().toISOString(),
           footer: {
-            text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+            text: 'ระบบแต้มกรมทหารราชวัลลภ',
             icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
           }
         };

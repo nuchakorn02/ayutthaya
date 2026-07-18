@@ -11,6 +11,9 @@ import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AddPlayerModal from '@/components/AddPlayerModal';
+import ScoreHistoryModal from '@/components/ScoreHistoryModal';
+import RankSettingsModal from '@/components/RankSettingsModal';
+import type { ScoreHistory } from '@/lib/types';
 
 interface AuditLog {
   id: string;
@@ -25,7 +28,7 @@ interface AuditLog {
   } | null;
 }
 
-function calculateDefaultPosition(score: number, division: string): string {
+function calculateDefaultPosition(score: number, division: string, thresholds: any[] = []): string {
   if (division === 'คณะผู้บริหาร') {
     return 'คณะผู้บริหารส่วนกลาง';
   }
@@ -41,6 +44,14 @@ function calculateDefaultPosition(score: number, division: string): string {
 
   const isPolice = division === 'กองพระตำรวจหลวง';
 
+  if (thresholds.length > 0) {
+    for (const t of thresholds) {
+      if (score >= t.score) return isPolice ? t.policeTitle : t.guardTitle;
+    }
+    const last = thresholds[thresholds.length - 1];
+    return isPolice ? last.policeTitle : last.guardTitle;
+  }
+
   if (score >= 600) return isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen';
   if (score >= 315) return isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen';
   if (score >= 210) return isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen';
@@ -51,8 +62,8 @@ function calculateDefaultPosition(score: number, division: string): string {
   return isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
 }
 
-function getDisplayPosition(position: string | undefined, score: number, division: string): string {
-  const basePos = position || calculateDefaultPosition(score, division);
+function getDisplayPosition(position: string | undefined, score: number, division: string, thresholds: any[] = []): string {
+  const basePos = position || calculateDefaultPosition(score, division, thresholds);
   if (division === 'กองพระตำรวจหลวง' && basePos) {
     if (basePos.includes('ครูฝึกทหารราชองครักษ์') || basePos.includes('Drill Master of the Royal Guards')) {
       return 'ครูฝึกตำรวจหลวง สายทอง | Royal Police Instructor (Golden Line)';
@@ -336,29 +347,81 @@ export default function AdminPage() {
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionLogsLoading, setSessionLogsLoading] = useState(false);
   const [sessionSearchQuery, setSessionSearchQuery] = useState('');
+  const [sessionFilterType, setSessionFilterType] = useState<'all' | 'updates' | 'new' | 'resigned'>('all');
 
   // Reset & Rollback states
   const [isResetting, setIsResetting] = useState(false);
   const [rollingBackSessionId, setRollingBackSessionId] = useState<string | null>(null);
   const [rollbackProgress, setRollbackProgress] = useState(0);
 
-  const handleDeletePlayer = async (player: Player) => {
-    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบผู้เล่น "${player.player_name}" ออกจากระบบ? การดำเนินการนี้ไม่สามารถย้อนกลับได้`)) {
+  // Score History Modal states
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [selectedHistoryPlayer, setSelectedHistoryPlayer] = useState<{name: string, division: string} | null>(null);
+  const [historyData, setHistoryData] = useState<ScoreHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Rank Settings State
+  const [rankSettingsOpen, setRankSettingsOpen] = useState(false);
+  const [rankThresholds, setRankThresholds] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/settings/ranks')
+      .then(res => res.json())
+      .then(data => {
+        if (data.thresholds) {
+          setRankThresholds(data.thresholds.sort((a: any, b: any) => b.score - a.score));
+        }
+      })
+      .catch(console.error);
+  }, [rankSettingsOpen]);
+
+  const handleViewHistory = async (player: Player) => {
+    setSelectedHistoryPlayer({ name: player.player_name, division: player.division });
+    setHistoryData([]);
+    setHistoryModalOpen(true);
+    setHistoryLoading(true);
+    
+    try {
+      const res = await fetch(`/api/players/${player.id}/history`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'ดึงข้อมูลไม่สำเร็จ');
+      
+      // Sort history descending (newest first)
+      const sortedHistory = (json.data || []).sort((a: ScoreHistory, b: ScoreHistory) => 
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      );
+      setHistoryData(sortedHistory);
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดึงประวัติ');
+      setHistoryModalOpen(false);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const handleRetirePlayer = async (player: Player) => {
+    if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการให้ "${player.player_name}" พ้นสภาพ/ลาออก?\nข้อมูลคะแนนจะยังถูกเก็บไว้ แต่ชื่อจะถูกซ่อนจากทำเนียบหลัก`)) {
       setIsDeleting(true);
       try {
         const res = await fetch(`/api/players/${player.id}`, {
-          method: 'DELETE',
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            total_score: -999,
+            division: 'ปลดประจำการ',
+            reason: 'พ้นสภาพ/ลาออก (Manual)'
+          }),
         });
         if (!res.ok) {
           const json = await res.json();
-          throw new Error(json.error || 'ลบผู้เล่นไม่สำเร็จ');
+          throw new Error(json.error || 'เปลี่ยนสถานะไม่สำเร็จ');
         }
-        showToast('success', `ลบ "${player.player_name}" ออกจากระบบเรียบร้อยแล้ว`);
+        showToast('success', `เปลี่ยนสถานะ "${player.player_name}" เป็นพ้นสภาพเรียบร้อยแล้ว`);
         fetchPlayers();
         fetchTopIncreases();
         fetchLogs();
       } catch (err) {
-        showToast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบผู้เล่น');
+        showToast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ');
       } finally {
         setIsDeleting(false);
       }
@@ -1032,6 +1095,17 @@ export default function AdminPage() {
               รีโหลดข้อมูล
             </button>
 
+            {/* Rank Settings Button */}
+            <button
+              onClick={() => setRankSettingsOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5
+                px-4 py-2 text-xs font-bold text-text-secondary tracking-wider uppercase
+                transition-all duration-300 hover:border-white/30 hover:bg-white/10
+                hover:text-white cursor-pointer"
+            >
+              <span>⚙️</span> ตั้งค่าเกณฑ์ยศ
+            </button>
+
             {/* Quick Add Player Button */}
             <button
               onClick={() => setIsAddModalOpen(true)}
@@ -1115,7 +1189,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredPlayers.map((player, index) => {
-                    const displayPosition = getDisplayPosition(player.position, player.total_score, player.division);
+                    const displayPosition = getDisplayPosition(player.position, player.total_score, player.division, rankThresholds);
 
                       return (
                         <tr
@@ -1159,6 +1233,16 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
                             <button
+                              onClick={() => handleViewHistory(player)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-accent-gold/10
+                                bg-accent-gold/5 px-2.5 py-1.5 text-xs font-medium text-accent-gold
+                                transition-all hover:border-accent-gold/30 hover:bg-accent-gold/10
+                                hover:shadow-[0_0_10px_rgba(212,175,55,0.1)] cursor-pointer"
+                            >
+                              <span className="text-[10px]">📜</span>
+                              ประวัติ
+                            </button>
+                            <button
                               onClick={() => handleEditPlayer(player)}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-white/10
                                 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-text-secondary
@@ -1171,17 +1255,15 @@ export default function AdminPage() {
                               แก้ไข
                             </button>
                             <button
-                              onClick={() => handleDeletePlayer(player)}
+                              onClick={() => handleRetirePlayer(player)}
                               disabled={isDeleting}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/10
                                 bg-red-500/5 px-2.5 py-1.5 text-xs font-medium text-red-400
                                 transition-all hover:border-red-500/30 hover:bg-red-500/10
                                 hover:shadow-[0_0_10px_rgba(239,68,68,0.1)] cursor-pointer disabled:opacity-50"
                             >
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              ลบ
+                              <span className="text-[10px]">💔</span>
+                              พ้นสภาพ
                             </button>
                           </td>
                         </tr>
@@ -1312,8 +1394,36 @@ export default function AdminPage() {
                         </button>
                       </div>
                       
+                      {/* Filter Tabs */}
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setSessionFilterType('all')}
+                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'all' ? 'bg-white/20 text-white border-white/50' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
+                        >
+                          📋 ทั้งหมด
+                        </button>
+                        <button
+                          onClick={() => setSessionFilterType('updates')}
+                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'updates' ? 'bg-accent-gold/20 text-accent-gold border-accent-gold/50 shadow-[0_0_10px_rgba(212,175,55,0.2)]' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
+                        >
+                          🔄 อัปเดตคะแนน
+                        </button>
+                        <button
+                          onClick={() => setSessionFilterType('new')}
+                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'new' ? 'bg-green-500/20 text-green-400 border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
+                        >
+                          🌟 เข้าใหม่
+                        </button>
+                        <button
+                          onClick={() => setSessionFilterType('resigned')}
+                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'resigned' ? 'bg-red-500/20 text-red-400 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
+                        >
+                          💔 ลาออก
+                        </button>
+                      </div>
+
                       {/* Search Input for individual in import */}
-                      <div className="relative w-full sm:w-48">
+                      <div className="relative w-full sm:w-64 mb-5">
                         <input
                           type="text"
                           value={sessionSearchQuery}
@@ -1359,15 +1469,25 @@ export default function AdminPage() {
                         <LoadingSpinner />
                       </div>
                     ) : (() => {
-                      const filteredLogs = sessionLogs.filter((log) =>
-                        log.player_name.toLowerCase().includes(sessionSearchQuery.toLowerCase())
-                      );
+                      const filteredLogs = sessionLogs.filter((log) => {
+                        const matchesSearch = log.player_name.toLowerCase().includes(sessionSearchQuery.toLowerCase());
+                        if (!matchesSearch) return false;
+                        
+                        const isNew = log.old_score === 0;
+                        const isResigned = log.new_score === -999;
+                        
+                        if (sessionFilterType === 'new') return isNew && !isResigned;
+                        if (sessionFilterType === 'resigned') return isResigned;
+                        if (sessionFilterType === 'updates') return !isNew && !isResigned;
+                        
+                        return true; // 'all'
+                      });
 
                       if (filteredLogs.length === 0) {
                         return (
                           <div className="flex flex-col items-center justify-center py-20 text-center text-xs text-text-secondary">
                             <span>📭</span>
-                            <p className="mt-2">ไม่พบรายชื่อทหารที่มีการเปลี่ยนแปลงแต้มตรงกับคำค้นหา</p>
+                            <p className="mt-2">ไม่พบรายชื่อทหารที่ตรงกับเงื่อนไขการค้นหา/ตัวกรอง</p>
                           </div>
                         );
                       }
@@ -1380,37 +1500,47 @@ export default function AdminPage() {
                                 <th className="pb-2 text-xs font-semibold text-text-secondary">ชื่อทหาร</th>
                                 <th className="pb-2 text-xs font-semibold text-text-secondary">กองทัพ</th>
                                 <th className="pb-2 text-center text-xs font-semibold text-text-secondary">แต้มเดิม</th>
-                                <th className="pb-2 text-center text-xs font-semibold text-text-secondary">การเปลี่ยนแปลง</th>
+                                <th className="pb-2 text-center text-xs font-semibold text-text-secondary">สถานะ</th>
                                 <th className="pb-2 text-right text-xs font-semibold text-text-secondary">แต้มใหม่</th>
                               </tr>
                             </thead>
                             <tbody>
                               {filteredLogs.map((log) => {
+                                const isNew = log.old_score === 0 && log.new_score !== -999;
+                                const isResigned = log.new_score === -999;
                                 const diffSign = log.score_diff > 0 ? '+' : '';
-                                const diffColor = log.score_diff > 0 
+                                
+                                let diffColor = log.score_diff > 0 
                                   ? 'text-green-400 bg-green-500/10 border-green-500/20' 
                                   : log.score_diff < 0 
                                     ? 'text-red-400 bg-red-500/10 border-red-500/20'
                                     : 'text-text-secondary bg-white/5 border-white/10';
+                                    
+                                if (isNew) diffColor = 'text-green-400 bg-green-500/10 border-green-500/50 shadow-[0_0_8px_rgba(34,197,94,0.3)]';
+                                if (isResigned) diffColor = 'text-red-400 bg-red-500/10 border-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.3)]';
 
                                 return (
-                                  <tr key={log.id} className="border-b border-white/5 text-xs hover:bg-white/[0.02] transition-colors">
-                                    <td className="py-2.5 font-medium text-text-primary">{log.player_name}</td>
+                                  <tr key={log.id} className={`border-b border-white/5 text-xs transition-colors ${isResigned ? 'opacity-80 bg-red-500/[0.03]' : isNew ? 'bg-green-500/[0.03]' : 'hover:bg-white/[0.02]'}`}>
+                                    <td className="py-2.5 font-medium text-text-primary flex items-center gap-1.5">
+                                      {isNew && <span className="text-[10px]">🌟</span>}
+                                      {isResigned && <span className="text-[10px]">💔</span>}
+                                      {log.player_name}
+                                    </td>
                                     <td className="py-2.5">
-                                      <span className={`font-semibold ${divisionColors[log.division] || 'text-text-secondary'}`}>
+                                      <span className={`font-semibold ${divisionColors[log.division] || 'text-text-secondary'} ${isResigned ? 'line-through opacity-50' : ''}`}>
                                         {log.division.replace('กองทัพที่ ', 'ทัพ ')}
                                       </span>
                                     </td>
                                     <td className="py-2.5 text-center font-mono text-text-secondary">
-                                      {log.old_score}
+                                      {isNew ? '-' : log.old_score}
                                     </td>
                                     <td className="py-2.5 text-center">
                                       <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold font-mono border ${diffColor}`}>
-                                        {diffSign}{log.score_diff}
+                                        {isResigned ? 'ลาออก' : isNew ? 'เข้าใหม่' : `${diffSign}${log.score_diff}`}
                                       </span>
                                     </td>
-                                    <td className="py-2.5 text-right font-mono font-bold text-accent-gold">
-                                      {log.new_score}
+                                    <td className={`py-2.5 text-right font-mono font-bold ${isResigned ? 'text-red-400' : 'text-accent-gold'}`}>
+                                      {isResigned ? 'ลาออก' : log.new_score}
                                     </td>
                                   </tr>
                                 );
@@ -1540,6 +1670,21 @@ export default function AdminPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAdd={handleUpdateComplete}
+      />
+
+      <ScoreHistoryModal
+        isOpen={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        playerName={selectedHistoryPlayer?.name || ''}
+        division={selectedHistoryPlayer?.division || ''}
+        historyData={historyData}
+        isLoading={historyLoading}
+      />
+
+      {/* Rank Settings Modal */}
+      <RankSettingsModal
+        isOpen={rankSettingsOpen}
+        onClose={() => setRankSettingsOpen(false)}
       />
 
       {/* Floating Scroll to Top / Bottom Buttons */}

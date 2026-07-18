@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (division) {
       query = query.eq('division', division).order('created_at', { ascending: true });
     } else {
-      query = query.order('total_score', { ascending: false });
+      query = query.neq('division', 'ปลดประจำการ').order('total_score', { ascending: false });
     }
 
     if (search) {
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
             ],
             timestamp: new Date().toISOString(),
             footer: {
-              text: 'ระบบทำเนียบกำลังรบ | Ayutthaya Royal Guard',
+              text: 'ระบบแต้มกรมทหารราชวัลลภ',
               icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
             }
           };

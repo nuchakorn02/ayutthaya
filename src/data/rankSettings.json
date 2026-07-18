@@ -1,0 +1,12 @@
+{
+  "thresholds": [
+    { "score": 600, "policeTitle": "พันตำรวจหลวง | Royal Police Colonel", "guardTitle": "นายพันเวร | Battalion Commander of Guardsmen" },
+    { "score": 315, "policeTitle": "นายกองตำรวจหลวง | Royal Police Battalion Commander", "guardTitle": "นายกองเวร | Company Head Guardsmen" },
+    { "score": 210, "policeTitle": "นายหมวดตำรวจหลวง | Royal Police Platoon Officer", "guardTitle": "นายหมวดเวร | Platoon Head Guardsmen" },
+    { "score": 110, "policeTitle": "นายหมู่ตำรวจหลวง | Royal Police Squad Leader", "guardTitle": "นายหมู่เวร | Squad Head Guardsmen" },
+    { "score": 60, "policeTitle": "พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper", "guardTitle": "พลทหารยามอาวุโส | Senior Guardsmen" },
+    { "score": 45, "policeTitle": "พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper", "guardTitle": "พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen" },
+    { "score": 20, "policeTitle": "พลประจำการตำรวจหลวง | Active Royal Police Trooper", "guardTitle": "พลทหารยาม | Guardsmen" },
+    { "score": 0, "policeTitle": "พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)", "guardTitle": "พลอาสาสมัครทหารยาม | Junior Guardsmen" }
+  ]
+}
