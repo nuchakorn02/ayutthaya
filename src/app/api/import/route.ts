@@ -781,7 +781,8 @@ export async function POST(request: NextRequest) {
     for (const p of playersToSoftDelete) {
       const { error: updateErr } = await adminClient
         .from('players')
-        .update({ division: 'ปลดประจำการ' })
+        // Medium fix: เพิ่ม total_score: -999 ให้ consistent กับการกดปุ่มพ้นสภาพจาก UI
+        .update({ division: 'ปลดประจำการ', total_score: -999 })
         .eq('id', p.id);
 
       if (!updateErr) {

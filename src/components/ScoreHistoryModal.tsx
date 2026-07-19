@@ -1,3 +1,5 @@
+'use client';
+
 import { ScoreHistory } from '@/lib/types';
 import LoadingSpinner from './LoadingSpinner';
 

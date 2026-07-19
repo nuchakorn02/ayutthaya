@@ -119,7 +119,7 @@ export default function RankSettingsModal({ isOpen, onClose }: RankSettingsModal
               </div>
               
               {thresholds.map((threshold, index) => (
-                <div key={index} className="grid grid-cols-12 gap-4 items-center bg-white/5 border border-white/10 rounded-xl p-3">
+                <div key={`rank-${threshold.policeTitle}`} className="grid grid-cols-12 gap-4 items-center bg-white/5 border border-white/10 rounded-xl p-3">
                   <div className="col-span-3">
                     <input
                       type="number"
