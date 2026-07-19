@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Player } from '@/lib/types';
+import { Player, RankThreshold } from '@/lib/types';
 
 interface ScoreUpdaterProps {
   player: Player | null;
@@ -17,7 +17,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [thresholds, setThresholds] = useState<any[]>([]);
+  const [thresholds, setThresholds] = useState<RankThreshold[]>([]);
 
   useEffect(() => {
     fetch('/api/settings/ranks')

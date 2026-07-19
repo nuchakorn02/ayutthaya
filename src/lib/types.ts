@@ -50,3 +50,9 @@ export interface ImportLog {
   created_at: string;
 }
 
+// Improvement #13: type กลางสำหรับ Rank Threshold แทนการใช้ any[]
+export interface RankThreshold {
+  score: number;
+  policeTitle: string;
+  guardTitle: string;
+}

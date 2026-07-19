@@ -69,6 +69,7 @@ export default function ScoreHistoryModal({
           ) : (
             <div className="relative border-l-2 border-white/10 ml-4 space-y-6 pb-4 pt-2">
               {historyData.map((log) => {
+                const isRetirement = log.new_score === -999;
                 const diffSign = log.score_diff > 0 ? '+' : '';
                 const isPositive = log.score_diff > 0;
                 const isNegative = log.score_diff < 0;
@@ -78,6 +79,7 @@ export default function ScoreHistoryModal({
                   <div key={log.id} className="relative pl-6 group">
                     {/* Timeline Node */}
                     <div className={`absolute -left-[9px] top-1.5 h-4 w-4 rounded-full border-2 border-[#0c0c1e] transition-transform group-hover:scale-125 ${
+                      isRetirement ? 'bg-zinc-500 shadow-[0_0_8px_rgba(113,113,122,0.6)]' :
                       isPositive ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' :
                       isNegative ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' :
                       'bg-zinc-400'
@@ -88,30 +90,46 @@ export default function ScoreHistoryModal({
                         <span className="text-[10px] font-mono font-medium text-text-secondary">
                           {date.toLocaleDateString('th-TH')} • {date.toLocaleTimeString('th-TH')} น.
                         </span>
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold font-mono border ${
-                          isPositive ? 'text-green-400 bg-green-500/10 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]' :
-                          isNegative ? 'text-red-400 bg-red-500/10 border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]' :
-                          'text-zinc-400 bg-white/5 border-white/10'
-                        }`}>
-                          {diffSign}{log.score_diff}
-                        </span>
+                        {isRetirement ? (
+                          <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-bold border text-zinc-400 bg-zinc-500/10 border-zinc-500/20">
+                            💔 พ้นสภาพ
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold font-mono border ${
+                            isPositive ? 'text-green-400 bg-green-500/10 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]' :
+                            isNegative ? 'text-red-400 bg-red-500/10 border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]' :
+                            'text-zinc-400 bg-white/5 border-white/10'
+                          }`}>
+                            {diffSign}{log.score_diff}
+                          </span>
+                        )}
                       </div>
                       
-                      <div className="flex items-center gap-5 text-sm">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-text-secondary uppercase tracking-wider mb-0.5">แต้มเดิม</span>
-                          <span className="font-mono text-text-primary font-medium">{log.old_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                      {/* Score before/after — ซ่อนถ้าเป็น retirement event */}
+                      {isRetirement ? (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-xs text-zinc-400">สถานะเดิม:</span>
+                          <span className="font-mono text-text-primary font-medium">{log.old_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} แต้ม</span>
+                          <span className="text-white/20 mx-1">→</span>
+                          <span className="font-mono font-bold text-zinc-400 text-sm">ปลดประจำการ</span>
                         </div>
-                        <div className="flex items-center text-white/20 mt-4">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                          </svg>
+                      ) : (
+                        <div className="flex items-center gap-5 text-sm">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-text-secondary uppercase tracking-wider mb-0.5">แต้มเดิม</span>
+                            <span className="font-mono text-text-primary font-medium">{log.old_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center text-white/20 mt-4">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-accent-gold uppercase tracking-wider mb-0.5">แต้มใหม่</span>
+                            <span className="font-mono font-bold text-accent-gold text-lg">{log.new_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] text-accent-gold uppercase tracking-wider mb-0.5">แต้มใหม่</span>
-                          <span className="font-mono font-bold text-accent-gold text-lg">{log.new_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>
-                        </div>
-                      </div>
+                      )}
                       
                       {/* Reason (if any) */}
                       {log.reason && (

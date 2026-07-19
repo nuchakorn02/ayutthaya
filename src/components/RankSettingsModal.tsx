@@ -1,12 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-interface RankThreshold {
-  score: number;
-  policeTitle: string;
-  guardTitle: string;
-}
+import type { RankThreshold } from '@/lib/types';
 
 interface RankSettingsModalProps {
   isOpen: boolean;
