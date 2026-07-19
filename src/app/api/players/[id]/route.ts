@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
-import { sendDiscordWebhook } from '@/lib/discord';
+import { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } from '@/lib/discord';
 import type { Player, ApiResponse } from '@/lib/types';
 
 function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
@@ -112,29 +112,19 @@ export async function PATCH(
         });
 
       if (historyError) {
-        console.error('Score history insert error:', historyError);
-        // Score was updated but history failed — log but don't fail the request
-        return NextResponse.json(
-          {
-            data: updatedPlayer as Player,
-            error: 'Player updated but failed to record history.',
-          } satisfies ApiResponse<Player>,
-          { status: 200 }
-        );
+        // Bug fix: อัปเดตคะแนนสำเร็จ แต่บันทึกประวัติผิดพลาด ไม่ตัดสินจบ request เพื่อให้ Discord webhook ยังทำงานได้
+        console.error('Score history insert error (non-fatal):', historyError);
       }
     }
 
     if (scoreDiff !== 0) {
-      // Import helpers
-      const { getRobloxAvatarUrl, DIVISION_EMBED_COLORS } = require('@/lib/discord');
-
       const diffSign = scoreDiff > 0 ? '+' : '';
       const playerName = existingPlayer.player_name;
       const divisionName = existingPlayer.division;
       const playerPos = (updatedPlayer as any).position || 'ไม่มีตำแหน่ง';
       
       // Determine embed color from division or default to gold
-      const embedColor = DIVISION_EMBED_COLORS[divisionName] || 13938487; // Default Gold #D4AF37
+      const embedColor = DIVISION_EMBED_COLORS[divisionName] || 13938487;
 
       // Run background fetching for avatar and send webhook asynchronously
       (async () => {
@@ -159,7 +149,7 @@ export async function PATCH(
             timestamp: new Date().toISOString(),
             footer: {
               text: 'ระบบแต้มกรมทหารราชวัลลภ',
-              icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png' // Default Roblox shield icon
+              icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
             }
           };
 

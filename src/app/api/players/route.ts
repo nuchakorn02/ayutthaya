@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
-import { supabase } from '@/lib/supabase/client';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { Player, ApiResponse } from '@/lib/types';
 
@@ -11,9 +10,15 @@ export async function GET(request: NextRequest) {
     const division = searchParams.get('division');
     const search = searchParams.get('search');
 
-    let query = supabase.from('players').select('*');
+    // Bug fix: ใช้ server admin client แทน browser anon client เพื่อความปลอดภัย
+    const adminClient = createAdminClient();
+    let query = adminClient.from('players').select('*');
 
     if (division) {
+      // Bug fix: กรอง ปลดประจำการ ออกเสมอ แม้ตอน query ด้วย division param
+      if (division === 'ปลดประจำการ') {
+        return NextResponse.json({ data: [], lastUpdated: null });
+      }
       query = query.eq('division', division).order('created_at', { ascending: true });
     } else {
       query = query.neq('division', 'ปลดประจำการ').order('total_score', { ascending: false });
@@ -34,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Query last updated timestamp from score_history
-    const { data: latestLog } = await supabase
+    const { data: latestLog } = await adminClient
       .from('score_history')
       .select('updated_at')
       .order('updated_at', { ascending: false })

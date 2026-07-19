@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import * as XLSX from 'xlsx';
+import fs from 'fs';
+import path from 'path';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendDiscordWebhook } from '@/lib/discord';
 import type { ApiResponse } from '@/lib/types';
@@ -118,8 +120,6 @@ function matchDivisionFuzzy(valStr: string): string | null {
   return null;
 }
 
-import fs from 'fs';
-import path from 'path';
 
 function getRankSettings() {
   const settingsPath = path.join(process.cwd(), 'src', 'data', 'rankSettings.json');

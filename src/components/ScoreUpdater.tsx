@@ -32,7 +32,9 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
 
   useEffect(() => {
     if (player) {
-      setNewScore(String(player.total_score));
+      // Bug fix: ไม่แสดง -999 ในช่อง input ถ้าทหารพ้นสภาพไปแล้ว
+      const displayScore = player.total_score === -999 ? 0 : player.total_score;
+      setNewScore(String(displayScore));
       setNewPosition(player.position || '');
       setReason('');
       setFeedback(null);
@@ -107,6 +109,14 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Bug fix: ป้องกันการ submit -999 โดยบังเอิญ
+    const scoreNum = Number(newScore);
+    if (scoreNum === -999) {
+      setFeedback({ type: 'error', message: 'ไม่สามารถเซ็ตคะแนนเป็น -999 ได้โดยตรง ถ้าต้องการให้พ้นสภาพ กรุณากดปุ่มด้านล่างแทน' });
+      return;
+    }
+
     setIsSubmitting(true);
     setFeedback(null);
 
@@ -205,6 +215,16 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
             </svg>
           </button>
         </div>
+
+        {/* Retired Player Warning Banner */}
+        {player.total_score === -999 && (
+          <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2">
+            <span className="text-amber-400 text-sm shrink-0">⚠️</span>
+            <p className="text-xs text-amber-400 font-medium">
+              ทหารคนนี้พ้นสภาพ/ลาออกไปแล้ว ถ้าต้องการนำกลับเข้าประจำการ ให้แก้คะแนนและกดบันทึกการแก้ไขได้เลย
+            </p>
+          </div>
+        )}
 
         {/* Player Info Card */}
         <div className="mb-6 rounded-xl border border-white/5 bg-white/[0.02] p-4">
