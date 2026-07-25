@@ -222,22 +222,64 @@ export async function POST(request: NextRequest) {
       }
 
       let finalUrl = url.trim();
+
       if (finalUrl.includes('onedrive.live.com') || finalUrl.includes('1drv.ms')) {
-        const base64 = Buffer.from(finalUrl).toString('base64');
-        const encoded = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-        finalUrl = `https://api.onedrive.com/v1.0/shares/u!${encoded}/root/content`;
+        // Fix: ใช้ &download=1 แทน api.onedrive.com/v1.0 ที่ Microsoft ปิดไปแล้ว
+        // รองรับทั้งลิงก์รูปแบบเก่า (onedrive.live.com) และใหม่ (1drv.ms/x/c/...)
+        const separator = finalUrl.includes('?') ? '&' : '?';
+        finalUrl = `${finalUrl}${separator}download=1`;
+        console.log('[OneDrive] Using download=1 approach:', finalUrl);
       }
 
       console.log('Fetching spreadsheet from URL:', finalUrl);
-      const res = await fetch(finalUrl);
-      if (!res.ok) {
-        return NextResponse.json(
-          { error: `Failed to download file from URL (Status: ${res.status}). Ensure the link is shared correctly.` } satisfies ApiResponse<never>,
-          { status: 400 }
-        );
+      const res = await fetch(finalUrl, {
+        headers: {
+          // ส่ง User-Agent เพื่อป้องกันการถูก block โดย CDN บางตัว
+          'User-Agent': 'Mozilla/5.0 (compatible; LeaderboardBot/1.0)'
+        },
+        redirect: 'follow'
+      });
+
+      // ถ้า download=1 ยังได้ HTML กลับมา (viewer page) ให้ลอง Graph API
+      const resContentType = res.headers.get('content-type') || '';
+      const isHtmlResponse = resContentType.includes('text/html');
+
+      if (!res.ok || isHtmlResponse) {
+        // Fallback: ลอง Microsoft Graph API สำหรับ public sharing links
+        if (url.includes('onedrive.live.com') || url.includes('1drv.ms')) {
+          try {
+            const base64 = Buffer.from(url.trim()).toString('base64');
+            const encoded = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            const graphUrl = `https://graph.microsoft.com/v1.0/shares/u!${encoded}/driveItem/content`;
+            console.log('[OneDrive] Falling back to Graph API:', graphUrl);
+
+            const graphRes = await fetch(graphUrl, { redirect: 'follow' });
+            if (graphRes.ok) {
+              buffer = await graphRes.arrayBuffer();
+              fileExtension = '.xlsx';
+              fileName = 'OneDrive Remote File';
+            } else {
+              return NextResponse.json(
+                { error: `ดึงไฟล์จาก OneDrive ไม่สำเร็จ (${graphRes.status}) — กรุณาตรวจสอบว่าไฟล์ถูกแชร์แบบ "ทุกคนที่มีลิงก์" แล้ว` } satisfies ApiResponse<never>,
+                { status: 400 }
+              );
+            }
+          } catch (graphErr) {
+            return NextResponse.json(
+              { error: 'ดึงไฟล์จาก OneDrive ไม่สำเร็จ — กรุณาตรวจสอบว่าไฟล์ถูกแชร์แบบ "ทุกคนที่มีลิงก์" แล้ว' } satisfies ApiResponse<never>,
+              { status: 400 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { error: `ดาวน์โหลดไฟล์ไม่สำเร็จ (Status: ${res.status}) — กรุณาตรวจสอบว่า URL สามารถเข้าถึงได้สาธารณะ` } satisfies ApiResponse<never>,
+            { status: 400 }
+          );
+        }
+      } else {
+        buffer = await res.arrayBuffer();
       }
 
-      buffer = await res.arrayBuffer();
       const contentDisposition = res.headers.get('content-disposition') || '';
       fileExtension = contentDisposition.includes('.csv') ? '.csv' : '.xlsx';
       fileName = 'OneDrive Remote File';
