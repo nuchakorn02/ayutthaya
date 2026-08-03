@@ -120,29 +120,41 @@ export async function POST(
           const revertedScore = Math.max(0, player.total_score - log.score_diff);
           const revertedPosition = calculateDefaultPosition(revertedScore, player.division);
 
+          // Delete the bad import's score_history entry first
+          const { error: historyDeleteError } = await adminClient
+            .from('score_history')
+            .delete()
+            .eq('player_id', player.id)
+            .eq('score_diff', log.score_diff)
+            .eq('new_score', log.new_score);
+
+          if (historyDeleteError) {
+            console.log(`Note: Score history deletion skipped: ${historyDeleteError.message}`);
+          }
+
+          // Find the latest_change to RESTORE by looking at the previous score_history entry
+          // (i.e., the most recent score_diff BEFORE the rolled-back import)
+          const { data: prevHistory } = await adminClient
+            .from('score_history')
+            .select('score_diff')
+            .eq('player_id', player.id)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          const restoredLatestChange = prevHistory ? prevHistory.score_diff : 0;
+
           const { error: updateError } = await adminClient
             .from('players')
             .update({
               total_score: revertedScore,
               position: revertedPosition,
-              latest_change: 0
+              latest_change: restoredLatestChange
             })
             .eq('id', player.id);
 
           if (updateError) {
             console.error(`Failed to revert player ${log.player_name} score during rollback:`, updateError);
-          } else {
-            // Delete the corresponding score_history entry
-            const { error: historyDeleteError } = await adminClient
-              .from('score_history')
-              .delete()
-              .eq('player_id', player.id)
-              .eq('score_diff', log.score_diff)
-              .eq('new_score', log.new_score);
-            
-            if (historyDeleteError) {
-              console.log(`Note: Score history deletion skipped or not found: ${historyDeleteError.message}`);
-            }
           }
         }
       }
