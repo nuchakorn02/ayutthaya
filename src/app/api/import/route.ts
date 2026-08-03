@@ -20,6 +20,65 @@ interface ImportResult {
   errors: string[];
 }
 
+/**
+ * Auto-reconcile score_history to ensure no player is missing history
+ * and no gaps exist between their total_score and their latest history record.
+ */
+async function autoReconcileScores(adminClient: any) {
+  try {
+    const { data: players } = await adminClient
+      .from('players')
+      .select('id, total_score, starting_score')
+      .neq('division', 'ปลดประจำการ')
+      .neq('total_score', -999);
+
+    const { data: allHistory } = await adminClient
+      .from('score_history')
+      .select('player_id, new_score')
+      .order('updated_at', { ascending: false });
+
+    const latestHistMap = new Map();
+    const hasHistorySet = new Set();
+    for (const h of allHistory || []) {
+      hasHistorySet.add(h.player_id);
+      if (!latestHistMap.has(h.player_id)) latestHistMap.set(h.player_id, h);
+    }
+
+    const newHistories = [];
+    for (const p of players || []) {
+      const score = p.total_score;
+      if (score <= 0) continue;
+
+      if (!hasHistorySet.has(p.id)) {
+        const oldScore = p.starting_score || 0;
+        newHistories.push({
+          player_id: p.id,
+          old_score: oldScore,
+          new_score: score,
+          score_diff: score - oldScore
+        });
+      } else {
+        const latest = latestHistMap.get(p.id);
+        if (Math.abs(score - latest.new_score) > 0.001) {
+          newHistories.push({
+            player_id: p.id,
+            old_score: latest.new_score,
+            new_score: score,
+            score_diff: score - latest.new_score
+          });
+        }
+      }
+    }
+
+    if (newHistories.length > 0) {
+      await adminClient.from('score_history').insert(newHistories);
+      console.log(`Auto-reconciled ${newHistories.length} score_history gaps.`);
+    }
+  } catch (err) {
+    console.error('Failed auto-reconciliation:', err);
+  }
+}
+
 function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
   const token = cookieStore.get('admin_token')?.value;
   if (!token) return false;
@@ -892,6 +951,9 @@ export async function POST(request: NextRequest) {
     if (updateImportCountsError) {
       console.error('Failed to update import session counts:', updateImportCountsError);
     }
+
+    // Run auto-reconciliation to guarantee history integrity for all players
+    await autoReconcileScores(adminClient);
 
     // Send Discord Webhook notification in background
     (async () => {
