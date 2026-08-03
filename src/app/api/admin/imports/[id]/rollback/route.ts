@@ -193,7 +193,7 @@ export async function POST(
           timestamp: new Date().toISOString(),
           footer: {
             text: 'ระบบแต้มกรมทหารราชวัลลภ',
-            icon_url: 'https://images.rbxcdn.com/f04c63283259e80277df178f5e1e7f04.png'
+            icon_url: 'https://omlbtybplmeryoigwmac.supabase.co/storage/v1/object/public/public_assets/logo.png'
           }
         };
 
