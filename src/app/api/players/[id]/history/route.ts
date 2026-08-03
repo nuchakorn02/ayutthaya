@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { createAdminClient } from '@/lib/supabase/server';
 import type { ApiResponse, ScoreHistory } from '@/lib/types';
 
 export async function GET(
@@ -17,8 +17,11 @@ export async function GET(
       );
     }
 
+    // ใช้ admin client เพื่อให้ผ่าน RLS และเห็นข้อมูลครบ
+    const adminClient = createAdminClient();
+
     // Query score history entries for this player, sorted chronologically
-    const { data: history, error } = await supabase
+    const { data: history, error } = await adminClient
       .from('score_history')
       .select('*')
       .eq('player_id', id)
