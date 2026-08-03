@@ -10,12 +10,10 @@ export async function GET(request: NextRequest) {
     const division = searchParams.get('division');
     const search = searchParams.get('search');
 
-    // Bug fix: ใช้ server admin client แทน browser anon client เพื่อความปลอดภัย
     const adminClient = createAdminClient();
     let query = adminClient.from('players').select('*');
 
     if (division) {
-      // Bug fix: กรอง ปลดประจำการ ออกเสมอ แม้ตอน query ด้วย division param
       if (division === 'ปลดประจำการ') {
         return NextResponse.json({ data: [], lastUpdated: null });
       }
@@ -28,7 +26,7 @@ export async function GET(request: NextRequest) {
       query = query.ilike('player_name', `%${search}%`);
     }
 
-    const { data, error } = await query;
+    const { data: players, error } = await query;
 
     if (error) {
       console.error('Supabase query error:', error);
@@ -38,18 +36,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Query last updated timestamp from score_history
-    const { data: latestLog } = await adminClient
+    // คำนวณ latest_change จาก score_history โดยตรง — ไม่พึ่ง stored field
+    // เพื่อให้ badge และ top-increases ถูกต้องเสมอ ไม่ว่าจะ rollback หรือ import แบบไหน
+    const { data: allHistory } = await adminClient
       .from('score_history')
-      .select('updated_at')
-      .order('updated_at', { ascending: false })
-      .limit(1);
+      .select('player_id, score_diff, updated_at')
+      .order('updated_at', { ascending: false });
 
-    const lastUpdated = latestLog && latestLog.length > 0 ? latestLog[0].updated_at : null;
+    // สร้าง map: player_id → score_diff ล่าสุด (เฉพาะ entry แรกของแต่ละคน)
+    const latestChangeMap = new Map<string, number>();
+    for (const h of allHistory || []) {
+      if (!latestChangeMap.has(h.player_id)) {
+        latestChangeMap.set(h.player_id, h.score_diff);
+      }
+    }
 
-    return NextResponse.json({ 
-      data: data || [],
-      lastUpdated 
+    // Query last updated timestamp from score_history
+    const lastUpdated =
+      allHistory && allHistory.length > 0 ? allHistory[0].updated_at : null;
+
+    // รวม latest_change ที่คำนวณได้เข้ากับข้อมูล player
+    const enrichedPlayers = (players || []).map((p) => ({
+      ...p,
+      latest_change: latestChangeMap.get(p.id) ?? 0,
+    }));
+
+    return NextResponse.json({
+      data: enrichedPlayers,
+      lastUpdated,
     });
   } catch (err) {
     console.error('Unexpected error in GET /api/players:', err);
@@ -59,6 +73,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 
 function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
   const token = cookieStore.get('admin_token')?.value;

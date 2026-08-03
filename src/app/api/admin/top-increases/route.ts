@@ -6,27 +6,57 @@ export async function GET() {
   try {
     const adminClient = createAdminClient();
 
-    // ดึง players ทุกคนที่ latest_change > 0 และไม่ใช่ปลดประจำการ
-    // ใช้ latest_change จาก players table โดยตรง — ไม่ต้องพึ่ง time window ของ score_history
-    const { data: players, error: playersError } = await adminClient
-      .from('players')
-      .select('id, player_name, division, latest_change, total_score')
-      .neq('division', 'ปลดประจำการ')
-      .neq('total_score', -999)
-      .gt('latest_change', 0)
-      .order('latest_change', { ascending: false });
+    // ดึง score_history ทั้งหมด เรียงจากใหม่ไปเก่า
+    const { data: allHistory, error: historyError } = await adminClient
+      .from('score_history')
+      .select('player_id, score_diff, updated_at')
+      .order('updated_at', { ascending: false });
 
-    if (playersError) {
-      console.error('Players query error:', playersError);
+    if (historyError) {
+      console.error('Score history query error:', historyError);
       return NextResponse.json(
-        { error: 'Failed to fetch players.' } satisfies ApiResponse<never>,
+        { error: 'Failed to fetch score history.' } satisfies ApiResponse<never>,
         { status: 500 }
       );
     }
 
-    if (!players || players.length === 0) {
+    if (!allHistory || allHistory.length === 0) {
       return NextResponse.json({ data: [] } satisfies ApiResponse<TopIncrease[]>);
     }
+
+    // หา score_diff ล่าสุดของแต่ละ player (ดึงแค่ entry แรกของแต่ละ player_id)
+    const latestChangeMap = new Map<string, { scoreDiff: number; lastUpdated: string }>();
+    for (const h of allHistory) {
+      if (!latestChangeMap.has(h.player_id)) {
+        latestChangeMap.set(h.player_id, {
+          scoreDiff: h.score_diff,
+          lastUpdated: h.updated_at,
+        });
+      }
+    }
+
+    // กรองเฉพาะ player ที่มี score_diff > 0
+    const playerIdsWithIncrease = Array.from(latestChangeMap.entries())
+      .filter(([, v]) => v.scoreDiff > 0)
+      .map(([id]) => id);
+
+    if (playerIdsWithIncrease.length === 0) {
+      return NextResponse.json({ data: [] } satisfies ApiResponse<TopIncrease[]>);
+    }
+
+    // ดึงข้อมูล player ที่มี increase
+    const { data: players, error: playersError } = await adminClient
+      .from('players')
+      .select('id, player_name, division')
+      .in('id', playerIdsWithIncrease)
+      .neq('division', 'ปลดประจำการ')
+      .neq('total_score', -999);
+
+    if (playersError || !players) {
+      return NextResponse.json({ data: [] } satisfies ApiResponse<TopIncrease[]>);
+    }
+
+    const playerMap = new Map(players.map((p) => [p.id, p]));
 
     const divisions = [
       'กองทัพมหาเสือพิทักษ์',
@@ -36,19 +66,32 @@ export async function GET() {
       'กองทัพที่ 1 ปัญจะซันยะ',
       'กองทัพที่ 2 วัชรนาถ',
       'กองทัพที่ 3 ปุณฑริก',
-      'กองทัพที่ 4 เกาโมทก'
+      'กองทัพที่ 4 เกาโมทก',
     ];
 
-    // หาคนที่ทำแต้มสูงสุดในแต่ละกองทัพ (players ถูกเรียง latest_change DESC แล้ว)
     const topIncreases: TopIncrease[] = [];
+
     for (const division of divisions) {
-      const best = players.find(p => p.division === division);
-      if (best) {
+      let bestId: string | null = null;
+      let bestDiff = 0;
+
+      for (const [playerId, change] of latestChangeMap.entries()) {
+        const player = playerMap.get(playerId);
+        if (!player || player.division !== division) continue;
+        if (change.scoreDiff > bestDiff) {
+          bestDiff = change.scoreDiff;
+          bestId = playerId;
+        }
+      }
+
+      if (bestId) {
+        const player = playerMap.get(bestId)!;
+        const change = latestChangeMap.get(bestId)!;
         topIncreases.push({
-          player_name: best.player_name,
-          division: best.division,
-          score_increase: best.latest_change ?? 0,
-          last_updated: new Date().toISOString(),
+          player_name: player.player_name,
+          division: player.division,
+          score_increase: change.scoreDiff,
+          last_updated: change.lastUpdated,
         });
       }
     }
