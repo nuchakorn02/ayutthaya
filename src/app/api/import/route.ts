@@ -785,7 +785,7 @@ export async function POST(request: NextRequest) {
             updated++;
           }
         } else {
-          // Insert new player with sequential created_at, position, starting_score, and latest_change = 0
+          // Insert new player — set latest_change = totalScore so badge shows on first import
           const baseTime = new Date('2026-05-27T00:00:00Z').getTime();
           const sequentialCreatedAt = new Date(baseTime + rowIndex * 1000).toISOString();
 
@@ -797,7 +797,7 @@ export async function POST(request: NextRequest) {
               total_score: totalScore,
               position: row.position,
               starting_score: totalScore,
-              latest_change: 0,
+              latest_change: totalScore,
               created_at: sequentialCreatedAt
             })
             .select('id')
@@ -810,6 +810,21 @@ export async function POST(request: NextRequest) {
 
           if (newInsertedPlayer) {
             processedIds.add(newInsertedPlayer.id);
+
+            // สร้าง score_history สำหรับผู้เล่นใหม่ เพื่อให้ timeline ประวัติแสดงได้
+            if (totalScore > 0) {
+              const { error: historyError } = await adminClient
+                .from('score_history')
+                .insert({
+                  player_id: newInsertedPlayer.id,
+                  old_score: 0,
+                  new_score: totalScore,
+                  score_diff: totalScore,
+                });
+              if (historyError) {
+                console.error(`Failed to insert score_history for new player ${playerName}:`, historyError);
+              }
+            }
           }
 
           // New player counts as delta change equal to their starting score
