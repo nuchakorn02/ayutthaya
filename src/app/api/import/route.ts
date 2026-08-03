@@ -710,7 +710,21 @@ export async function POST(request: NextRequest) {
           
           // Fix for restoring retired players: prevent massive scoreDiff (+1099)
           if (oldScore === -999) {
-            scoreDiff = 0;
+            // ดึงคะแนนเดิมก่อนที่จะโดน -999 จากประวัติล่าสุด
+            const { data: lastHistory } = await adminClient
+              .from('score_history')
+              .select('old_score')
+              .eq('player_id', existingPlayer.id)
+              .eq('new_score', -999)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (lastHistory && lastHistory.old_score !== null) {
+              scoreDiff = totalScore - lastHistory.old_score;
+            } else {
+              scoreDiff = 0;
+            }
           }
 
           // Generate a sequential created_at to preserve exact Excel ordering
