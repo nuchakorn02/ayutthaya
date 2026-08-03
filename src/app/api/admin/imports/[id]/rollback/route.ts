@@ -98,16 +98,20 @@ export async function POST(
 
       if (player) {
         if (log.new_score === -999) {
-          // This player was soft-deleted. Restore their original division.
+          // This player was soft-deleted. Restore their original division AND score.
           const { error: restoreError } = await adminClient
             .from('players')
-            .update({ division: log.division })
+            .update({
+              division: log.division,
+              total_score: log.old_score  // คืนแต้มเดิมด้วย ไม่ใช่แค่ division
+            })
             .eq('id', player.id);
           if (restoreError) {
-            console.error(`Failed to restore player ${log.player_name} division during rollback:`, restoreError);
+            console.error(`Failed to restore player ${log.player_name} during rollback:`, restoreError);
           }
-        } else if (log.old_score === 0) {
-          // This player was created in this import. We should delete them.
+        } else if (log.old_score === 0 && log.score_diff > 0 && log.score_diff === log.new_score) {
+          // ลบเฉพาะคนที่ถูก INSERT ใหม่จริงๆ ใน import นี้
+          // (old_score=0, score_diff=new_score หมายความว่าเป็นคนใหม่ ไม่ใช่คนเดิมที่แต้มเป็น 0)
           const { error: deleteError } = await adminClient
             .from('players')
             .delete()
@@ -160,7 +164,7 @@ export async function POST(
       }
     }
 
-    // 4. Delete the import session record (cascades to import_logs)
+    // 4. Delete the import session record (cascades to import_logs via FK)
     const { error: deleteSessionError } = await adminClient
       .from('imports')
       .delete()

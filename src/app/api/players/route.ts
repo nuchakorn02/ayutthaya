@@ -37,11 +37,15 @@ export async function GET(request: NextRequest) {
     }
 
     // คำนวณ latest_change จาก score_history โดยตรง — ไม่พึ่ง stored field
-    // เพื่อให้ badge และ top-increases ถูกต้องเสมอ ไม่ว่าจะ rollback หรือ import แบบไหน
-    const { data: allHistory } = await adminClient
-      .from('score_history')
-      .select('player_id, score_diff, updated_at')
-      .order('updated_at', { ascending: false });
+    // กรองเฉพาะ player IDs ที่อยู่ในผลลัพธ์เพื่อประสิทธิภาพ
+    const playerIds = (players || []).map((p) => p.id);
+    const { data: allHistory } = playerIds.length > 0
+      ? await adminClient
+          .from('score_history')
+          .select('player_id, score_diff, updated_at')
+          .in('player_id', playerIds)
+          .order('updated_at', { ascending: false })
+      : { data: [] };
 
     // สร้าง map: player_id → score_diff ล่าสุด (เฉพาะ entry แรกของแต่ละคน)
     const latestChangeMap = new Map<string, number>();
