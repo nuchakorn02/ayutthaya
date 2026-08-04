@@ -37,11 +37,11 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { total_score, position, reason, division } = body;
+    const { total_score, position, reason, division, player_name } = body;
 
-    if (total_score === undefined && position === undefined && division === undefined) {
+    if (total_score === undefined && position === undefined && division === undefined && player_name === undefined) {
       return NextResponse.json(
-        { error: 'total_score, position, or division is required.' } satisfies ApiResponse<never>,
+        { error: 'total_score, position, division, or player_name is required.' } satisfies ApiResponse<never>,
         { status: 400 }
       );
     }
@@ -67,6 +67,35 @@ export async function PATCH(
     let oldScore = existingPlayer.total_score;
     let newScore = oldScore;
     let scoreDiff = 0;
+
+    if (player_name !== undefined) {
+      if (typeof player_name !== 'string' || player_name.trim().length === 0) {
+        return NextResponse.json(
+          { error: 'player_name must be a non-empty string.' } satisfies ApiResponse<never>,
+          { status: 400 }
+        );
+      }
+      if (player_name.trim().length > 50) {
+        return NextResponse.json(
+          { error: 'player_name must be 50 characters or fewer.' } satisfies ApiResponse<never>,
+          { status: 400 }
+        );
+      }
+      // Check for duplicate name (excluding self)
+      const { data: duplicate } = await adminClient
+        .from('players')
+        .select('id')
+        .eq('player_name', player_name.trim())
+        .neq('id', id)
+        .maybeSingle();
+      if (duplicate) {
+        return NextResponse.json(
+          { error: `ชื่อ "${player_name.trim()}" มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น` } satisfies ApiResponse<never>,
+          { status: 409 }
+        );
+      }
+      updatePayload.player_name = player_name.trim();
+    }
 
     if (total_score !== undefined && typeof total_score === 'number') {
       newScore = total_score;

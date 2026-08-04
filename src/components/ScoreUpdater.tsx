@@ -12,6 +12,7 @@ interface ScoreUpdaterProps {
 
 export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: ScoreUpdaterProps) {
   const [newScore, setNewScore] = useState('');
+  const [newName, setNewName] = useState('');
   const [newPosition, setNewPosition] = useState('');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +36,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
       // Bug fix: ไม่แสดง -999 ในช่อง input ถ้าทหารพ้นสภาพไปแล้ว
       const displayScore = player.total_score === -999 ? 0 : player.total_score;
       setNewScore(String(displayScore));
+      setNewName(player.player_name);
       setNewPosition(player.position || '');
       setReason('');
       setFeedback(null);
@@ -111,11 +113,21 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
     e.preventDefault();
     
     // Bug fix: ป้องกันการ submit -999 โดยบังเอิญ
-    const scoreNum = Number(newScore);
-    if (scoreNum === -999) {
-      setFeedback({ type: 'error', message: 'ไม่สามารถเซ็ตคะแนนเป็น -999 ได้โดยตรง ถ้าต้องการให้พ้นสภาพ กรุณากดปุ่มด้านล่างแทน' });
-      return;
-    }
+      const scoreNum = Number(newScore);
+      if (scoreNum === -999) {
+        setFeedback({ type: 'error', message: 'ไม่สามารถเซ็ตคะแนนเป็น -999 ได้โดยตรง ถ้าต้องการให้พ้นสภาพ กรุณากดปุ่มด้านล่างแทน' });
+        return;
+      }
+
+      const trimmedName = newName.trim();
+      if (!trimmedName) {
+        setFeedback({ type: 'error', message: 'ชื่อผู้เล่นห้ามว่างเปล่า' });
+        return;
+      }
+      if (trimmedName.length > 50) {
+        setFeedback({ type: 'error', message: 'ชื่อผู้เล่นต้องไม่เกิน 50 ตัวอักษร' });
+        return;
+      }
 
     setIsSubmitting(true);
     setFeedback(null);
@@ -128,6 +140,8 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
           total_score: Number(newScore),
           position: newPosition.trim() || null,
           reason: reason.trim() || null,
+          // เปลี่ยนชื่อเฉพาะตอนที่ชื่อเปลี่ยนจริง
+          ...(newName.trim() !== player.player_name ? { player_name: newName.trim() } : {}),
         }),
       });
 
@@ -239,6 +253,29 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Player Name Input */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+              ชื่อ Roblox (เปลี่ยนชื่อ)
+            </label>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              maxLength={50}
+              placeholder="ชื่อ Roblox ของผู้เล่น"
+              className="glass-card w-full px-4 py-2.5 text-base text-text-primary
+                outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
+                focus:border-accent-gold/40 focus:shadow-[0_0_15px_rgba(212,175,55,0.08)]"
+              required
+            />
+            {newName.trim() !== player.player_name && newName.trim().length > 0 && (
+              <p className="mt-1 text-[10px] text-amber-400 font-medium">
+                ⚠️ จะเปลี่ยนชื่อจาก <span className="font-mono">{player.player_name}</span> → <span className="font-mono">{newName.trim()}</span>
+              </p>
+            )}
+          </div>
+
           {/* Score Input */}
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-text-secondary">
@@ -254,6 +291,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
               required
             />
           </div>
+
 
           {/* Position Input */}
           <div>
