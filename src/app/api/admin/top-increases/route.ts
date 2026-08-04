@@ -6,11 +6,27 @@ export async function GET() {
   try {
     const adminClient = createAdminClient();
 
-    // ดึง score_history ทั้งหมด เรียงจากใหม่ไปเก่า
+    // ดึงเฉพาะ score_history ล่าสุดของแต่ละ player
+    // โดยกรอง player ที่ยังอยู่ในระบบก่อน แล้วค่อย join history
+    const { data: activePlayers, error: playersError } = await adminClient
+      .from('players')
+      .select('id, player_name, division')
+      .neq('division', 'ปลดประจำการ')
+      .neq('total_score', -999);
+
+    if (playersError || !activePlayers || activePlayers.length === 0) {
+      return NextResponse.json({ data: [] } satisfies ApiResponse<TopIncrease[]>);
+    }
+
+    const activePlayerIds = activePlayers.map((p) => p.id);
+
+    // ดึงเฉพาะ score_history ของ active players เรียงจากใหม่ไปเก่า
     const { data: allHistory, error: historyError } = await adminClient
       .from('score_history')
       .select('player_id, score_diff, updated_at')
+      .in('player_id', activePlayerIds)
       .order('updated_at', { ascending: false });
+
 
     if (historyError) {
       console.error('Score history query error:', historyError);
@@ -44,19 +60,9 @@ export async function GET() {
       return NextResponse.json({ data: [] } satisfies ApiResponse<TopIncrease[]>);
     }
 
-    // ดึงข้อมูล player ที่มี increase
-    const { data: players, error: playersError } = await adminClient
-      .from('players')
-      .select('id, player_name, division')
-      .in('id', playerIdsWithIncrease)
-      .neq('division', 'ปลดประจำการ')
-      .neq('total_score', -999);
+    // ใช้ activePlayers ที่ดึงมาแล้วด้านบน ไม่ต้อง query ซ้ำ
+    const playerMap = new Map(activePlayers.map((p) => [p.id, p]));
 
-    if (playersError || !players) {
-      return NextResponse.json({ data: [] } satisfies ApiResponse<TopIncrease[]>);
-    }
-
-    const playerMap = new Map(players.map((p) => [p.id, p]));
 
     const divisions = [
       'กองทัพมหาเสือพิทักษ์',

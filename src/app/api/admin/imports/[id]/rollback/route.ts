@@ -136,24 +136,13 @@ export async function POST(
             console.log(`Note: Score history deletion skipped: ${historyDeleteError.message}`);
           }
 
-          // Find the latest_change to RESTORE by looking at the previous score_history entry
-          // (i.e., the most recent score_diff BEFORE the rolled-back import)
-          const { data: prevHistory } = await adminClient
-            .from('score_history')
-            .select('score_diff')
-            .eq('player_id', player.id)
-            .order('updated_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          const restoredLatestChange = prevHistory ? prevHistory.score_diff : 0;
-
+          // คืน total_score และ position — ไม่ต้อง update latest_change
+          // เพราะระบบคำนวณ latest_change จาก score_history ตอน query เสมอ
           const { error: updateError } = await adminClient
             .from('players')
             .update({
               total_score: revertedScore,
               position: revertedPosition,
-              latest_change: restoredLatestChange
             })
             .eq('id', player.id);
 
