@@ -322,6 +322,7 @@ export default function AdminPage() {
     Array(8).fill(null)
   );
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [weeklyPoints, setWeeklyPoints] = useState(0);
   const [division, setDivision] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -578,6 +579,18 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchWeeklyPoints = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/logs?since=7d');
+      const json = await res.json();
+      const entries: AuditLog[] = json.data || [];
+      const total = entries.reduce((sum, e) => sum + Math.abs(e.score_diff), 0);
+      setWeeklyPoints(total);
+    } catch (err) {
+      console.error('Failed to fetch weekly points:', err);
+    }
+  }, []);
+
   const fetchImportSessions = useCallback(async () => {
     setSessionsLoading(true);
     try {
@@ -612,8 +625,9 @@ export default function AdminPage() {
     fetchPlayers();
     fetchTopIncreases();
     fetchLogs();
+    fetchWeeklyPoints();
     fetchImportSessions();
-  }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchImportSessions]);
+  }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchWeeklyPoints, fetchImportSessions]);
 
   // Auto-refresh every 5 minutes to keep data up-to-date
   useEffect(() => {
@@ -621,14 +635,16 @@ export default function AdminPage() {
       fetchPlayers();
       fetchTopIncreases();
       fetchLogs();
+      fetchWeeklyPoints();
     }, 5 * 60 * 1000);
     return () => clearInterval(autoRefresh);
-  }, [fetchPlayers, fetchTopIncreases, fetchLogs]);
+  }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchWeeklyPoints]);
 
   const handleRefreshAll = () => {
     fetchPlayers();
     fetchTopIncreases();
     fetchLogs();
+    fetchWeeklyPoints();
     fetchImportSessions();
     showToast('success', 'รีโหลดข้อมูลทั้งหมดแล้ว');
   };
@@ -758,11 +774,8 @@ export default function AdminPage() {
   const maxDivScore = Math.max(...divStats.map((d) => d.totalScore), 1);
   const supremeDiv = [...divStats].sort((a, b) => b.totalScore - a.totalScore)[0];
 
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const weeklyPoints = logs
-    .filter((log) => new Date(log.updated_at) >= sevenDaysAgo)
-    .reduce((sum, log) => sum + Math.abs(log.score_diff), 0);
+  // weeklyPoints is now fetched from /api/admin/logs?since=7d — no 30-row limit
+
 
   // Compute guardsmen rank distribution counts
   const officersCount = allPlayers.filter((p) => {
