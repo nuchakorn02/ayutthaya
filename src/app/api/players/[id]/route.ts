@@ -1,31 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } from '@/lib/discord';
 import type { Player, ApiResponse } from '@/lib/types';
 
-function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
-  const token = cookieStore.get('admin_token')?.value;
-  if (!token) return false;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) return false;
-  const expectedHash = crypto.createHash('sha256').update(adminPassword).digest('hex');
-  return token === expectedHash;
-}
+
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    if (!verifyAdmin(cookieStore)) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access required.' } satisfies ApiResponse<never>,
-        { status: 401 }
-      );
-    }
+    
 
     const { id } = await params;
 
@@ -210,13 +196,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    if (!verifyAdmin(cookieStore)) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access required.' } satisfies ApiResponse<never>,
-        { status: 401 }
-      );
-    }
+    
 
     const { id } = await params;
 

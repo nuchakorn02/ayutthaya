@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { ApiResponse } from '@/lib/types';
 
-function verifyAdmin(cookieStore: any): boolean {
-  const token = cookieStore.get('admin_token')?.value;
-  if (!token) return false;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) return false;
-  const expectedHash = crypto.createHash('sha256').update(adminPassword).digest('hex');
-  return token === expectedHash;
-}
+
 
 function calculateDefaultPosition(score: number, division: string): string {
   if (division === 'กองทัพมหาเสือพิทักษ์') {
@@ -41,13 +33,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const cookieStore = await cookies();
-    if (!verifyAdmin(cookieStore)) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access required.' } satisfies ApiResponse<never>,
-        { status: 401 }
-      );
-    }
+    
 
     const { id: importId } = await params;
     const adminClient = createAdminClient();

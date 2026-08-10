@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import crypto from 'crypto';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { Player, ApiResponse } from '@/lib/types';
 
@@ -79,24 +78,11 @@ export async function GET(request: NextRequest) {
 }
 
 
-function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
-  const token = cookieStore.get('admin_token')?.value;
-  if (!token) return false;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) return false;
-  const expectedHash = crypto.createHash('sha256').update(adminPassword).digest('hex');
-  return token === expectedHash;
-}
+
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    if (!verifyAdmin(cookieStore)) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access required.' } satisfies ApiResponse<never>,
-        { status: 401 }
-      );
-    }
+    
 
     const body = await request.json();
     const { player_name, division, total_score, position } = body;

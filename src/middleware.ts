@@ -51,27 +51,33 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // 3. ป้องกัน write API endpoints (POST, PATCH, DELETE, PUT)
-  const isWriteMethod = ['POST', 'PATCH', 'DELETE', 'PUT'].includes(method);
+  // 3. Centralized API Security
+  const isApiRoute = pathname.startsWith('/api/');
+  
+  if (isApiRoute) {
+    const isWriteMethod = ['POST', 'PATCH', 'DELETE', 'PUT'].includes(method);
+    const isAdminApi = pathname.startsWith('/api/admin/');
+    const isLoginEndpoint = pathname === '/api/admin/login';
+    
+    // Whitelist: endpoints ที่เป็น public และต้องการ method พิเศษ
+    const isPublicEndpoint = [
+      '/api/players/[id]/history',
+    ].some((ep) => pathname.startsWith(ep));
 
-  // Whitelist: endpoints ที่ไม่ต้อง auth (public read, login)
-  const publicEndpoints = [
-    '/api/admin/login',
-    '/api/players/[id]/history',
-  ];
-  const isPublicEndpoint = publicEndpoints.some((ep) => pathname.startsWith(ep));
-
-  if (isWriteMethod && pathname.startsWith('/api/') && !isPublicEndpoint) {
-    if (pathname === '/api/admin/login') {
+    // ข้ามการเช็ค auth ถ้าเป็นหน้า Login หรือ Public
+    if (isLoginEndpoint || isPublicEndpoint) {
       return NextResponse.next();
     }
 
-    const isValid = await verifyAdminToken(request);
-    if (!isValid) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access required.' },
-        { status: 401 }
-      );
+    // ล็อคทันทีถ้าเป็น (1) Endpoint ของ Admin หรือ (2) เป็นการเขียนข้อมูล (Write Method)
+    if (isAdminApi || isWriteMethod) {
+      const isValid = await verifyAdminToken(request);
+      if (!isValid) {
+        return NextResponse.json(
+          { error: 'Unauthorized. Admin access required.' },
+          { status: 401 }
+        );
+      }
     }
   }
 

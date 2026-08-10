@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
 const SETTINGS_FILE_PATH = path.join(process.cwd(), 'src', 'data', 'rankSettings.json');
 
-function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
-  const token = cookieStore.get('admin_token')?.value;
-  if (!token) return false;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) return false;
-  const expectedHash = crypto.createHash('sha256').update(adminPassword).digest('hex');
-  return token === expectedHash;
-}
+
 
 export async function GET() {
   try {
@@ -31,11 +23,6 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    if (!verifyAdmin(cookieStore)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const data = await request.json();
     
     // Bug fix: Validate schema ก่อน write ไฟล์ ป้องกันข้อมูลผิดรูปแบบทำให้ระบบคำนวณยศพัง

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import crypto from 'crypto';
 import * as XLSX from 'xlsx';
 import fs from 'fs';
 import path from 'path';
@@ -83,14 +82,7 @@ async function autoReconcileScores(adminClient: ReturnType<typeof createAdminCli
   }
 }
 
-function verifyAdmin(cookieStore: ReturnType<typeof cookies> extends Promise<infer T> ? T : never): boolean {
-  const token = cookieStore.get('admin_token')?.value;
-  if (!token) return false;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) return false;
-  const expectedHash = crypto.createHash('sha256').update(adminPassword).digest('hex');
-  return token === expectedHash;
-}
+
 
 function matchDivisionFuzzy(valStr: string): string | null {
   const normalized = valStr.replace(/\s+/g, '').replace(/[·\-\.]/g, '').toLowerCase();
@@ -237,13 +229,7 @@ function calculateDefaultPosition(score: number, division: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    if (!verifyAdmin(cookieStore)) {
-      return NextResponse.json(
-        { error: 'Unauthorized. Admin access required.' } satisfies ApiResponse<never>,
-        { status: 401 }
-      );
-    }
+    
 
     let buffer: ArrayBuffer;
     let fileExtension = '';
