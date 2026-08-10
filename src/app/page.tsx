@@ -6,6 +6,7 @@ import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
 import Leaderboard from '@/components/Leaderboard';
 import LoadingSpinner from '@/components/LoadingSpinner';
+import SkeletonLoader from '@/components/SkeletonLoader';
 import ExecutiveBoard from '@/components/ExecutiveBoard';
 
 export default function HomePage() {
@@ -296,7 +297,7 @@ export default function HomePage() {
         )}
 
         {loading && players.length === 0 && !fetchError ? (
-          <LoadingSpinner />
+          <SkeletonLoader />
         ) : fetchError ? (
           <div className="glass-card flex flex-col items-center justify-center px-8 py-20 border border-accent-crimson/30">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent-crimson/10 border border-accent-crimson/30">
