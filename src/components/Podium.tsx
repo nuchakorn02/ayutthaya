@@ -15,26 +15,6 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
   const p2 = topPlayers[1];
   const p3 = topPlayers[2];
 
-  // Helper to render the rank change badge
-  const renderRankChange = (player: Player) => {
-    if (!rankChanges) return null;
-    const change = rankChanges[player.id];
-    // Only show badge if there is a change AND the player had score updates (latest_change !== 0)
-    if (!change || player.latest_change === 0) return null;
-
-    const isUp = change > 0;
-    const absChange = Math.abs(change);
-    const badgeColor = isUp
-      ? 'bg-green-500/20 text-green-400 border-green-500/30'
-      : 'bg-red-500/20 text-red-400 border-red-500/30';
-    
-    return (
-      <div className={`absolute -top-3 -right-3 z-20 flex h-6 items-center justify-center rounded-full border px-2 text-[10px] font-bold backdrop-blur-md ${badgeColor} shadow-[0_0_10px_rgba(0,0,0,0.5)]`}>
-        {isUp ? '▲' : '▼'}{absChange}
-      </div>
-    );
-  };
-
   const getPositionStr = (p: Player) => {
     return getDisplayPosition(p.position, p.total_score, p.division, []); // Pass empty thresholds, it will fallback to calculation or position string
   };
@@ -47,7 +27,7 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
       {p2 && (
         <div className="flex w-1/3 max-w-[140px] flex-col items-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="relative mb-3 flex flex-col items-center">
-            {renderRankChange(p2)}
+            
             <div className="relative flex h-14 w-14 sm:h-20 sm:w-20 items-center justify-center rounded-full border-4 border-slate-300 bg-[#0c0c1e] shadow-[0_0_20px_rgba(203,213,225,0.3)] z-10 overflow-hidden">
               <img
                 src={`/api/roblox/avatar/${encodeURIComponent(p2.player_name)}`}
@@ -75,7 +55,7 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
       {p1 && (
         <div className="flex w-1/3 max-w-[160px] flex-col items-center animate-slide-up z-10" style={{ animationDelay: '0.1s' }}>
           <div className="relative mb-3 flex flex-col items-center">
-            {renderRankChange(p1)}
+            
             <div className="absolute -top-7 sm:-top-10 z-20 animate-float text-3xl sm:text-5xl drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]">
               👑
             </div>
@@ -107,7 +87,7 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
       {p3 && (
         <div className="flex w-1/3 max-w-[140px] flex-col items-center animate-slide-up" style={{ animationDelay: '0.3s' }}>
           <div className="relative mb-3 flex flex-col items-center">
-            {renderRankChange(p3)}
+            
             <div className="relative flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full border-4 border-[#cd7f32] bg-[#0c0c1e] shadow-[0_0_20px_rgba(205,127,50,0.3)] z-10 overflow-hidden">
               <img
                 src={`/api/roblox/avatar/${encodeURIComponent(p3.player_name)}`}
