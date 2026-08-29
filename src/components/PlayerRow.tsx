@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Player, ScoreHistory } from '@/lib/types';
 import AnimatedCounter from '@/components/AnimatedCounter';
+import { calculateDefaultPosition, getDisplayPosition } from '@/lib/positionUtils';
+
 
 /** Small sub-component so each chart dot can manage its own hover state without violating Rules of Hooks */
 function ChartDot({ cx, cy, val, date, chartHeight }: { cx: number; cy: number; val: number; date: string; chartHeight: number }) {
@@ -41,49 +43,6 @@ interface PlayerRowProps {
   rankChange?: number;
 }
 
-function calculateDefaultPosition(score: number, division: string): string {
-  if (division === 'คณะผู้บริหาร') {
-    return 'คณะผู้บริหารส่วนกลาง';
-  }
-  if (division === 'กองทัพมหาเสือพิทักษ์') {
-    return 'ทหารเสือประจำพระองค์';
-  }
-  if (division === 'กองทัพธรณินพิทักษ์') {
-    return 'ทหารธรณินพิทักษ์';
-  }
-  if (division === 'กองทัพอาทมาต') {
-    return 'หมื่นอาทมาต';
-  }
-
-  const isPolice = division === 'กองพระตำรวจหลวง';
-
-  if (score >= 600) return isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen';
-  if (score >= 315) return isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen';
-  if (score >= 210) return isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen';
-  if (score >= 110) return isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen';
-  if (score >= 60) return isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen';
-  if (score >= 45) return isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen';
-  if (score >= 20) return isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen';
-  return isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
-}
-
-function getDisplayPosition(position: string | undefined, score: number, division: string): string {
-  const basePos = position || calculateDefaultPosition(score, division);
-  if (division === 'กองพระตำรวจหลวง' && basePos) {
-    if (basePos.includes('ครูฝึกทหารราชองครักษ์') || basePos.includes('Drill Master of the Royal Guards')) {
-      return 'ครูฝึกตำรวจหลวง สายทอง | Royal Police Instructor (Golden Line)';
-    }
-    if (basePos.startsWith('นายพันเวร')) return 'พันตำรวจหลวง | Royal Police Colonel';
-    if (basePos.startsWith('นายกองเวร')) return 'นายกองตำรวจหลวง | Royal Police Battalion Commander';
-    if (basePos.startsWith('นายหมวดเวร')) return 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer';
-    if (basePos.startsWith('นายหมู่เวร')) return 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader';
-    if (basePos.startsWith('พลทหารยามอาวุโส')) return 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper';
-    if (basePos.startsWith('พลทหารราชวัลลภพิเศษ')) return 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper';
-    if (basePos.startsWith('พลทหารยาม')) return 'พลประจำการตำรวจหลวง | Active Royal Police Trooper';
-    if (basePos.startsWith('พลอาสาสมัครทหารยาม')) return 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)';
-  }
-  return basePos;
-}
 
 const divisionColors: Record<string, { bg: string; text: string; border: string }> = {
   'กองทัพธรณินพิทักษ์': { bg: 'bg-violet-600/15', text: 'text-violet-400', border: 'border-violet-500/30' },
@@ -392,9 +351,11 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
               )}
             </div>
 
-            {/* Rank Change Badge — floats over corner of rank box */}
+            {/* Score Change Badge — floats over corner of rank box */}
             {isSortedByScore && rankChange !== undefined && rankChange !== 0 && (
-              <span className={`absolute -top-1.5 -right-1.5 inline-flex items-center justify-center text-[8px] font-black h-5 px-1.5 min-w-5 rounded-full border border-[#0a0a1a] ${
+              <span
+                title={`${rankChange > 0 ? 'ได้แต้มเพิ่ม' : 'แต้มลด'} ${Math.abs(rankChange)} แต้ม ในการอัปเดตล่าสุด`}
+                className={`absolute -top-1.5 -right-1.5 inline-flex items-center justify-center text-[8px] font-black h-5 px-1.5 min-w-5 rounded-full border border-[#0a0a1a] ${
                 rankChange > 0
                   ? 'bg-green-500/20 text-green-400 border-green-500/30'
                   : 'bg-red-500/20 text-red-400 border-red-500/30'

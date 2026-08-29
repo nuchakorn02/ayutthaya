@@ -108,37 +108,18 @@ export default function HomePage() {
     setFilteredPlayers(result);
   }, [players, division, search]);
 
-  // Compute global rank change map for competitive ranking (non-executives)
+  // Compute score change map — show ▲/▼ based on actual score gained/lost (latest_change)
+  // This is more reliable than comparing rank positions which breaks when new players are added
   useEffect(() => {
     if (players.length === 0) return;
 
-    // Filter out executive players for competitive ranking
-    const normalPlayers = players.filter((p) => p.division !== 'คณะผู้บริหาร');
-
-    // 1. Sort by current score descending to get current global ranks
-    const currentSorted = [...normalPlayers].sort((a, b) => b.total_score - a.total_score);
-    const currentRanks = new Map<string, number>();
-    currentSorted.forEach((p, idx) => {
-      currentRanks.set(p.id, idx + 1);
-    });
-
-    // 2. Sort by previous score descending to get previous global ranks
-    const previousSorted = [...normalPlayers].sort((a, b) => {
-      const prevA = a.total_score - (a.latest_change || 0);
-      const prevB = b.total_score - (b.latest_change || 0);
-      return prevB - prevA;
-    });
-    const previousRanks = new Map<string, number>();
-    previousSorted.forEach((p, idx) => {
-      previousRanks.set(p.id, idx + 1);
-    });
-
-    // 3. Compute rank changes
     const changes: Record<string, number> = {};
-    normalPlayers.forEach((p) => {
-      const curr = currentRanks.get(p.id) || 0;
-      const prev = previousRanks.get(p.id) || 0;
-      changes[p.id] = prev - curr; // positive means moved up
+    players.forEach((p) => {
+      // latest_change = แต้มที่เพิ่ม/ลดในการ import ครั้งล่าสุด
+      // บวก = ได้แต้มเพิ่ม (▲), ลบ = เสียแต้ม (▼), 0/undefined = ไม่เปลี่ยน (ไม่โชว์ลูกศร)
+      if (p.latest_change !== undefined && p.latest_change !== null && p.latest_change !== 0) {
+        changes[p.id] = p.latest_change;
+      }
     });
 
     setRankChanges(changes);
