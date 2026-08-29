@@ -108,18 +108,36 @@ export default function HomePage() {
     setFilteredPlayers(result);
   }, [players, division, search]);
 
-  // Compute score change map — show ▲/▼ based on actual score gained/lost (latest_change)
-  // This is more reliable than comparing rank positions which breaks when new players are added
+  // คำนวณการเปลี่ยนแปลงลำดับ (rank positions moved ▲/▼)
+  // แต่โชว์เฉพาะคนที่แต้มตัวเองเปลี่ยนจริงๆ เท่านั้น
+  // เพื่อป้องกันกรณีที่ผู้เล่นใหม่เข้าระบบ แล้วทุกคนดูเหมือนขึ้นอันดับทั้งที่ไม่ได้ขึ้นจริง
   useEffect(() => {
     if (players.length === 0) return;
 
+    const normalPlayers = players.filter((p) => p.division !== 'คณะผู้บริหาร');
+
+    // 1. อันดับปัจจุบัน (เรียงตามแต้มตอนนี้)
+    const currentSorted = [...normalPlayers].sort((a, b) => b.total_score - a.total_score);
+    const currentRanks = new Map<string, number>();
+    currentSorted.forEach((p, idx) => currentRanks.set(p.id, idx + 1));
+
+    // 2. อันดับก่อนหน้า (เรียงตามแต้มก่อน import ล่าสุด)
+    const previousSorted = [...normalPlayers].sort((a, b) => {
+      const prevA = a.total_score - (a.latest_change || 0);
+      const prevB = b.total_score - (b.latest_change || 0);
+      return prevB - prevA;
+    });
+    const previousRanks = new Map<string, number>();
+    previousSorted.forEach((p, idx) => previousRanks.set(p.id, idx + 1));
+
+    // 3. โชว์ badge เฉพาะผู้เล่นที่แต้มตัวเองเปลี่ยนจริงๆ เท่านั้น
     const changes: Record<string, number> = {};
-    players.forEach((p) => {
-      // latest_change = แต้มที่เพิ่ม/ลดในการ import ครั้งล่าสุด
-      // บวก = ได้แต้มเพิ่ม (▲), ลบ = เสียแต้ม (▼), 0/undefined = ไม่เปลี่ยน (ไม่โชว์ลูกศร)
-      if (p.latest_change !== undefined && p.latest_change !== null && p.latest_change !== 0) {
-        changes[p.id] = p.latest_change;
-      }
+    normalPlayers.forEach((p) => {
+      if (!p.latest_change || p.latest_change === 0) return; // ไม่เปลี่ยน = ไม่โชว์
+      const curr = currentRanks.get(p.id) || 0;
+      const prev = previousRanks.get(p.id) || 0;
+      const rankDiff = prev - curr; // บวก = ขึ้นอันดับ, ลบ = ลงอันดับ
+      if (rankDiff !== 0) changes[p.id] = rankDiff;
     });
 
     setRankChanges(changes);

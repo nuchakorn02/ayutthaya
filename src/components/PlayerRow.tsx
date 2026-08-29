@@ -354,7 +354,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
             {/* Score Change Badge — floats over corner of rank box */}
             {isSortedByScore && rankChange !== undefined && rankChange !== 0 && (
               <span
-                title={`${rankChange > 0 ? 'ได้แต้มเพิ่ม' : 'แต้มลด'} ${Math.abs(rankChange)} แต้ม ในการอัปเดตล่าสุด`}
+                title={`${rankChange > 0 ? 'ขึ้น' : 'ลง'} ${Math.abs(rankChange)} อันดับ จากการอัปเดตล่าสุด`}
                 className={`absolute -top-1.5 -right-1.5 inline-flex items-center justify-center text-[8px] font-black h-5 px-1.5 min-w-5 rounded-full border border-[#0a0a1a] ${
                 rankChange > 0
                   ? 'bg-green-500/20 text-green-400 border-green-500/30'
