@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
-import { Player, TopIncrease, ImportSession, ImportLog } from '@/lib/types';
 import AdminNav from '@/components/AdminNav';
 import TopIncreaseCard from '@/components/TopIncreaseCard';
 import CsvImporter from '@/components/CsvImporter';
 import ScoreUpdater from '@/components/ScoreUpdater';
 import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
+import { Player, TopIncrease, ImportSession, ImportLog } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AddPlayerModal from '@/components/AddPlayerModal';
 import ScoreHistoryModal from '@/components/ScoreHistoryModal';
@@ -17,6 +17,8 @@ import type { ScoreHistory } from '@/lib/types';
 import { calculateDefaultPosition, getDisplayPosition } from '@/lib/positionUtils';
 import AdminAuditLogs, { AuditLog } from '@/components/admin/AdminAuditLogs';
 import AdminDashboard from '@/components/admin/AdminDashboard';
+import AdminPlayerManager from '@/components/admin/AdminPlayerManager';
+import AdminImportSystem from '@/components/admin/AdminImportSystem';
 import { DivisionBarChart, DivisionDonutChart } from '@/components/admin/AdminCharts';
 
 
@@ -545,504 +547,42 @@ export default function AdminPage() {
       </section>
 
       {/* Section 2: Player Management */}
-      <section className="mb-10 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-        {/* Header with Export Excel Button */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-purple/15">
-              <svg className="h-4 w-4 text-accent-purple" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-bold text-text-primary">จัดการผู้เล่น</h2>
-            <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-mono text-text-secondary">
-              {filteredPlayers.length} ผู้เล่น
-            </span>
-          </div>
+      <AdminPlayerManager 
+        filteredPlayers={filteredPlayers}
+        loading={loading}
+        search={search}
+        setSearch={setSearch}
+        division={division}
+        handleDivisionChange={handleDivisionChange}
+        handleRefreshAll={handleRefreshAll}
+        handleExportExcel={handleExportExcel}
+        resetDatabase={handleResetDatabase}
+        isResetting={isResetting}
+        setRankSettingsOpen={setRankSettingsOpen}
+        setIsAddModalOpen={setIsAddModalOpen}
+        handleEditPlayer={handleEditPlayer}
+        handleDeletePlayer={handleRetirePlayer}
+        openHistory={handleViewHistory}
+        rankThresholds={rankThresholds}
+      />
 
-          <div className="flex flex-wrap gap-3">
-            {/* Refresh All Button */}
-            <button
-              onClick={handleRefreshAll}
-              disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5
-                px-4 py-2 text-xs font-bold text-text-secondary tracking-wider uppercase
-                transition-all duration-300 hover:border-white/25 hover:bg-white/10
-                hover:text-text-primary cursor-pointer disabled:opacity-50"
-            >
-              <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              รีโหลดข้อมูล
-            </button>
-
-            {/* Rank Settings Button */}
-            <button
-              onClick={() => setRankSettingsOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5
-                px-4 py-2 text-xs font-bold text-text-secondary tracking-wider uppercase
-                transition-all duration-300 hover:border-white/30 hover:bg-white/10
-                hover:text-white cursor-pointer"
-            >
-              <span>⚙️</span> ตั้งค่าเกณฑ์ยศ
-            </button>
-
-            {/* Quick Add Player Button */}
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl border border-accent-cyan/20 bg-accent-cyan/5
-                px-4 py-2 text-xs font-bold text-accent-cyan tracking-wider uppercase
-                transition-all duration-300 hover:border-accent-cyan/50 hover:bg-accent-cyan/10
-                hover:shadow-[0_0_15px_rgba(0,240,255,0.1)] cursor-pointer"
-            >
-              <span>➕</span> เพิ่มทหารรายใหม่
-            </button>
-
-            {/* Export Excel Button */}
-            <button
-              onClick={handleExportExcel}
-              className="inline-flex items-center gap-2 rounded-xl border border-accent-gold/20 bg-accent-gold/5
-                px-4 py-2 text-xs font-bold text-accent-gold tracking-wider uppercase
-                transition-all duration-300 hover:border-accent-gold/50 hover:bg-accent-gold/10
-                hover:shadow-[0_0_15px_rgba(212,175,55,0.1)] cursor-pointer"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              💾 ดาวน์โหลดสำรองข้อมูลทำเนียบ Excel
-            </button>
-
-            {/* Reset Database Button */}
-            <button
-              onClick={handleResetDatabase}
-              disabled={isResetting}
-              className="inline-flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5
-                px-4 py-2 text-xs font-bold text-red-400 tracking-wider uppercase
-                transition-all duration-300 hover:border-red-500/50 hover:bg-red-500/10
-                hover:shadow-[0_0_15px_rgba(239,68,68,0.1)] cursor-pointer disabled:opacity-50"
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              {isResetting ? 'กำลังล้าง...' : '🚨 ล้างฐานข้อมูลทหารทั้งหมด'}
-            </button>
-          </div>
-        </div>
-
-        {/* Search and Filter */}
-        <div className="mb-4 space-y-3">
-          <SearchBar value={search} onChange={setSearch} />
-          <DivisionFilter value={division} onChange={handleDivisionChange} />
-        </div>
-
-        {/* Players Table */}
-        {loading ? (
-          <LoadingSpinner />
-        ) : filteredPlayers.length === 0 ? (
-          <div className="glass-card flex flex-col items-center py-12">
-            <p className="text-text-secondary">ไม่พบผู้เล่น</p>
-          </div>
-        ) : (
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10 bg-white/[0.02]">
-                    <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-                      #
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-                      ชื่อผู้เล่น
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-                      ตำแหน่ง
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-                      กอง
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold tracking-wider text-text-secondary uppercase">
-                      คะแนนรวม
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-text-secondary uppercase">
-                      จัดการ
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPlayers.map((player, index) => {
-                    const displayPosition = getDisplayPosition(player.position, player.total_score, player.division, rankThresholds);
-
-                      return (
-                        <tr
-                          key={player.id}
-                          className="player-row border-b border-white/5"
-                        >
-                          <td className="px-4 py-3 font-mono text-sm text-text-secondary">
-                            {index + 1}
-                          </td>
-                          <td className="px-4 py-3 font-medium text-text-primary">
-                            {player.player_name}
-                          </td>
-                          <td className="px-4 py-3 text-xs font-semibold text-text-secondary">
-                            <span className={(displayPosition?.startsWith('ปลัดราชวัลลภ') || displayPosition === 'พระยามหาเสือ' || displayPosition === 'พระยาอัครอารักษ์' || displayPosition === 'พระยาอาทมาตราชภักดี') ? 'text-accent-gold-glowing font-bold' : ''}>
-                              {displayPosition}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`font-semibold ${divisionColors[player.division] || 'text-text-secondary'}`}>
-                              {player.division}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-mono">
-                            <div className="flex flex-col items-end">
-                              <span className="font-bold text-accent-cyan flex items-center gap-1.5 justify-end">
-                                {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                {player.latest_change !== undefined && player.latest_change !== 0 && (
-                                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
-                                    player.latest_change > 0 
-                                      ? 'text-green-400 bg-green-500/10 border-green-500/20' 
-                                      : 'text-red-400 bg-red-500/10 border-red-500/20'
-                                  }`}>
-                                    {player.latest_change > 0 ? '+' : ''}{player.latest_change.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                                  </span>
-                                )}
-                              </span>
-                              <span className="text-[10px] text-text-secondary mt-0.5">
-                                เริ่มแรก: {player.starting_score !== undefined ? player.starting_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-center flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleViewHistory(player)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-accent-gold/10
-                                bg-accent-gold/5 px-2.5 py-1.5 text-xs font-medium text-accent-gold
-                                transition-all hover:border-accent-gold/30 hover:bg-accent-gold/10
-                                hover:shadow-[0_0_10px_rgba(212,175,55,0.1)] cursor-pointer"
-                            >
-                              <span className="text-[10px]">📜</span>
-                              ประวัติ
-                            </button>
-                            <button
-                              onClick={() => handleEditPlayer(player)}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-white/10
-                                bg-white/5 px-2.5 py-1.5 text-xs font-medium text-text-secondary
-                                transition-all hover:border-accent-cyan/30 hover:text-accent-cyan
-                                hover:shadow-[0_0_10px_rgba(0,240,255,0.1)] cursor-pointer"
-                            >
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              แก้ไข
-                            </button>
-                            <button
-                              onClick={() => handleRetirePlayer(player)}
-                              disabled={isDeleting}
-                              className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/10
-                                bg-red-500/5 px-2.5 py-1.5 text-xs font-medium text-red-400
-                                transition-all hover:border-red-500/30 hover:bg-red-500/10
-                                hover:shadow-[0_0_10px_rgba(239,68,68,0.1)] cursor-pointer disabled:opacity-50"
-                            >
-                              <span className="text-[10px]">💔</span>
-                              พ้นสภาพ
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Section 3: CSV Import */}
-      <section className="mb-10 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-gold/15">
-            <svg className="h-4 w-4 text-accent-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-text-primary">นำเข้าข้อมูล</h2>
-        </div>
-
-        <CsvImporter onImportComplete={handleImportComplete} />
-      </section>
-
-      {/* Section 4: Individual Import Delta History */}
-      <section className="mb-10 animate-slide-up" style={{ animationDelay: '0.22s' }}>
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-cyan/15 shadow-[0_0_10px_rgba(0,240,255,0.1)]">
-            <svg className="h-4 w-4 text-accent-cyan" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-text-primary">ประวัติแต้มรายบุคคลจากไฟล์ (Import Delta History)</h2>
-          <span className="ml-auto rounded-full bg-white/5 px-3 py-1 text-xs font-mono text-text-secondary">
-            ระบบเซสชัน
-          </span>
-        </div>
-
-        {sessionsLoading ? (
-          <LoadingSpinner />
-        ) : importSessions.length === 0 ? (
-          <div className="glass-card flex flex-col items-center py-12">
-            <p className="text-text-secondary">ยังไม่มีข้อมูลประวัติการนำเข้าไฟล์ในระบบ</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* Left Column: Import Sessions List */}
-            <div className="lg:col-span-5 space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              <p className="text-[10px] uppercase font-bold tracking-wider text-text-secondary mb-2">เลือกประวัติการนำเข้าไฟล์</p>
-              {importSessions.map((session) => {
-                const isSelected = selectedSession?.id === session.id;
-                const formattedDate = new Date(session.created_at).toLocaleString('th-TH', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                });
-                return (
-                  <button
-                    key={session.id}
-                    onClick={() => setSelectedSession(session)}
-                    className={`w-full text-left p-4 rounded-xl border transition-all duration-300 relative overflow-hidden flex flex-col justify-between cursor-pointer ${
-                      isSelected
-                        ? 'border-accent-gold bg-accent-gold/5 shadow-[0_0_15px_rgba(212,175,55,0.1)]'
-                        : 'border-white/5 bg-white/[0.01] hover:border-white/20 hover:bg-white/[0.03]'
-                    }`}
-                  >
-                    {isSelected && (
-                      <div className="absolute top-0 right-0 w-12 h-12 bg-accent-gold/10 rounded-bl-full flex items-center justify-center">
-                        <span className="text-accent-gold text-xs font-bold pl-3 pb-3">✓</span>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-3">
-                      <span className="text-lg">📁</span>
-                      <div className="pr-4">
-                        <p className={`font-bold text-sm truncate ${isSelected ? 'text-accent-gold' : 'text-text-primary'}`}>
-                          {session.filename}
-                        </p>
-                        <p className="text-[10px] text-text-secondary mt-1">{formattedDate}</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2 text-[10px] font-mono font-semibold text-text-secondary border-t border-white/5 pt-2">
-                      <span className="bg-green-500/10 text-green-400 border border-green-500/15 px-2 py-0.5 rounded">
-                        เพิ่มใหม่: +{session.imported_count}
-                      </span>
-                      <span className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/15 px-2 py-0.5 rounded">
-                        ปรับปรุงแต้ม: {session.updated_count}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Right Column: Individual Deltas in Selected Session */}
-            <div className="lg:col-span-7 flex flex-col justify-between">
-              <div className="glass-card p-5 border-white/5 h-full flex flex-col">
-                {selectedSession ? (
-                  <>
-                    {/* Header */}
-                    <div className="mb-5 pb-3 border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-4">
-                        <div>
-                          <h3 className="text-sm font-bold text-accent-gold flex items-center gap-2">
-                            <span>🔍</span> เจาะลึกรายชื่อทหารในไฟล์
-                          </h3>
-                          <p className="text-[10px] text-text-secondary mt-0.5 truncate max-w-[200px]">
-                            ไฟล์: {selectedSession.filename}
-                          </p>
-                        </div>
-                        
-                        {/* Rollback Session Button */}
-                        <button
-                          onClick={() => handleRollbackSession(selectedSession)}
-                          disabled={rollingBackSessionId === selectedSession.id}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/5
-                            px-2.5 py-1 text-[10px] font-bold text-red-400 uppercase tracking-wider
-                            transition-all duration-300 hover:border-red-500/50 hover:bg-red-500/10
-                            hover:shadow-[0_0_10px_rgba(239,68,68,0.1)] cursor-pointer disabled:opacity-50"
-                        >
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                          </svg>
-                          {rollingBackSessionId === selectedSession.id ? `ย้อนกลับ (${rollbackProgress}%)` : '↩️ ย้อนกลับไฟล์นี้'}
-                        </button>
-                      </div>
-                      
-                      {/* Filter Tabs */}
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setSessionFilterType('all')}
-                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'all' ? 'bg-white/20 text-white border-white/50' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
-                        >
-                          📋 ทั้งหมด
-                        </button>
-                        <button
-                          onClick={() => setSessionFilterType('updates')}
-                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'updates' ? 'bg-accent-gold/20 text-accent-gold border-accent-gold/50 shadow-[0_0_10px_rgba(212,175,55,0.2)]' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
-                        >
-                          🔄 อัปเดตคะแนน
-                        </button>
-                        <button
-                          onClick={() => setSessionFilterType('new')}
-                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'new' ? 'bg-green-500/20 text-green-400 border-green-500/50 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
-                        >
-                          🌟 เข้าใหม่
-                        </button>
-                        <button
-                          onClick={() => setSessionFilterType('resigned')}
-                          className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-lg transition-all border ${sessionFilterType === 'resigned' ? 'bg-red-500/20 text-red-400 border-red-500/50 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : 'bg-white/5 text-text-secondary border-white/10 hover:bg-white/10'}`}
-                        >
-                          💔 ลาออก
-                        </button>
-                      </div>
-
-                      {/* Search Input for individual in import */}
-                      <div className="relative w-full sm:w-64 mb-5">
-                        <input
-                          type="text"
-                          value={sessionSearchQuery}
-                          onChange={(e) => setSessionSearchQuery(e.target.value)}
-                          placeholder="ค้นหารายชื่อทหาร..."
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent-gold transition-colors font-sans pr-8"
-                        />
-                        <span className="absolute right-2.5 top-2 text-text-secondary text-xs">🔍</span>
-                      </div>
-                    </div>
-
-                    {/* Rollback Progress Bar */}
-                    {rollingBackSessionId === selectedSession.id && (
-                      <div className="mb-5 p-4 rounded-xl border border-red-500/20 bg-red-500/5 space-y-2 animate-slide-up">
-                        <div className="flex justify-between items-center text-xs font-bold text-red-400">
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse-glow" />
-                            กำลังย้อนกลับฐานข้อมูล (ลบกำลังพลใหม่ & คืนค่าคะแนนเดิม)...
-                          </span>
-                          <span className="font-mono text-sm">{rollbackProgress}%</span>
-                        </div>
-                        <div className="w-full bg-[#1c0c0c] border border-red-500/15 rounded-full h-2.5 overflow-hidden p-0.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.6)]">
-                          <div
-                            className="bg-gradient-to-r from-red-600 to-red-500 h-full rounded-full transition-all duration-300 relative overflow-hidden"
-                            style={{ width: `${rollbackProgress}%` }}
-                          >
-                            <div 
-                              className="absolute inset-0" 
-                              style={{ 
-                                backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent)',
-                                backgroundSize: '200% 100%',
-                                animation: 'shimmer-gold 2s infinite'
-                              }} 
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Table View */}
-                    {sessionLogsLoading ? (
-                      <div className="py-20 flex justify-center">
-                        <LoadingSpinner />
-                      </div>
-                    ) : (() => {
-                      const filteredLogs = sessionLogs.filter((log) => {
-                        const matchesSearch = log.player_name.toLowerCase().includes(sessionSearchQuery.toLowerCase());
-                        if (!matchesSearch) return false;
-                        
-                        const isNew = log.old_score === 0;
-                        const isResigned = log.new_score === -999;
-                        
-                        if (sessionFilterType === 'new') return isNew && !isResigned;
-                        if (sessionFilterType === 'resigned') return isResigned;
-                        if (sessionFilterType === 'updates') return !isNew && !isResigned;
-                        
-                        return true; // 'all'
-                      });
-
-                      if (filteredLogs.length === 0) {
-                        return (
-                          <div className="flex flex-col items-center justify-center py-20 text-center text-xs text-text-secondary">
-                            <span>📭</span>
-                            <p className="mt-2">ไม่พบรายชื่อทหารที่ตรงกับเงื่อนไขการค้นหา/ตัวกรอง</p>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="overflow-x-auto max-h-[350px] overflow-y-auto pr-1">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-white/5 text-left text-text-secondary text-xs">
-                                <th className="pb-2 text-xs font-semibold text-text-secondary">ชื่อทหาร</th>
-                                <th className="pb-2 text-xs font-semibold text-text-secondary">กองทัพ</th>
-                                <th className="pb-2 text-center text-xs font-semibold text-text-secondary">แต้มเดิม</th>
-                                <th className="pb-2 text-center text-xs font-semibold text-text-secondary">สถานะ</th>
-                                <th className="pb-2 text-right text-xs font-semibold text-text-secondary">แต้มใหม่</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredLogs.map((log) => {
-                                const isNew = log.old_score === 0 && log.new_score !== -999;
-                                const isResigned = log.new_score === -999;
-                                const diffSign = log.score_diff > 0 ? '+' : '';
-                                
-                                let diffColor = log.score_diff > 0 
-                                  ? 'text-green-400 bg-green-500/10 border-green-500/20' 
-                                  : log.score_diff < 0 
-                                    ? 'text-red-400 bg-red-500/10 border-red-500/20'
-                                    : 'text-text-secondary bg-white/5 border-white/10';
-                                    
-                                if (isNew) diffColor = 'text-green-400 bg-green-500/10 border-green-500/50 shadow-[0_0_8px_rgba(34,197,94,0.3)]';
-                                if (isResigned) diffColor = 'text-red-400 bg-red-500/10 border-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.3)]';
-
-                                return (
-                                  <tr key={log.id} className={`border-b border-white/5 text-xs transition-colors ${isResigned ? 'opacity-80 bg-red-500/[0.03]' : isNew ? 'bg-green-500/[0.03]' : 'hover:bg-white/[0.02]'}`}>
-                                    <td className="py-2.5 font-medium text-text-primary flex items-center gap-1.5">
-                                      {isNew && <span className="text-[10px]">🌟</span>}
-                                      {isResigned && <span className="text-[10px]">💔</span>}
-                                      {log.player_name}
-                                    </td>
-                                    <td className="py-2.5">
-                                      <span className={`font-semibold ${divisionColors[log.division] || 'text-text-secondary'} ${isResigned ? 'line-through opacity-50' : ''}`}>
-                                        {log.division.replace('กองทัพที่ ', 'ทัพ ')}
-                                      </span>
-                                    </td>
-                                    <td className="py-2.5 text-center font-mono text-text-secondary">
-                                      {isNew ? '-' : log.old_score}
-                                    </td>
-                                    <td className="py-2.5 text-center">
-                                      <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold font-mono border ${diffColor}`}>
-                                        {isResigned ? 'ลาออก' : isNew ? 'เข้าใหม่' : `${diffSign}${log.score_diff}`}
-                                      </span>
-                                    </td>
-                                    <td className={`py-2.5 text-right font-mono font-bold ${isResigned ? 'text-red-400' : 'text-accent-gold'}`}>
-                                      {isResigned ? 'ลาออก' : log.new_score}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      );
-                    })()}
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-center text-xs text-text-secondary">
-                    <span>👈</span>
-                    <p className="mt-2">โปรดเลือกประวัติการนำเข้าไฟล์ด้านซ้ายเพื่อดูสถิติเจาะลึกรายบุคคล</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
+      {/* Section 3 & 4: Import System */}
+      <AdminImportSystem 
+        handleImportComplete={handleImportComplete}
+        importSessions={importSessions}
+        selectedSession={selectedSession}
+        setSelectedSession={setSelectedSession}
+        sessionLogs={sessionLogs}
+        sessionsLoading={sessionsLoading}
+        sessionLogsLoading={sessionLogsLoading}
+        sessionSearchQuery={sessionSearchQuery}
+        setSessionSearchQuery={setSessionSearchQuery}
+        sessionFilterType={sessionFilterType}
+        setSessionFilterType={setSessionFilterType}
+        handleRollbackSession={handleRollbackSession}
+        rollingBackSessionId={rollingBackSessionId}
+        rollbackProgress={rollbackProgress}
+      />
 
       {/* Part 3: Section 4 - Admin Audit Logs */}
       <AdminAuditLogs logs={logs} loading={logsLoading} />
