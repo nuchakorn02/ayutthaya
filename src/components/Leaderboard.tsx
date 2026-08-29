@@ -25,8 +25,8 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges }: L
   }
 
   return (
-    <div className="glass-card glow-cyan overflow-hidden">
-      <table className="w-full">
+    <div className="glass-card glow-cyan overflow-x-auto">
+      <table className="w-full min-w-[700px]">
         {/* Table Header */}
         <thead>
           <tr className="border-b border-white/10 bg-white/[0.02]">
@@ -39,10 +39,10 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges }: L
             <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
               ตำแหน่ง
             </th>
-            <th className="hidden px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase md:table-cell">
+            <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
               กอง
             </th>
-            <th className="hidden px-6 py-4 text-right text-xs font-semibold tracking-wider text-text-secondary uppercase md:table-cell">
+            <th className="px-6 py-4 text-right text-xs font-semibold tracking-wider text-text-secondary uppercase">
               คะแนนรวม
             </th>
           </tr>

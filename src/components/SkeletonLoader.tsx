@@ -28,15 +28,15 @@ export default function SkeletonLoader() {
       </div>
 
       {/* Leaderboard Table Skeleton */}
-      <div className="glass-card glow-cyan overflow-hidden mt-8">
-        <table className="w-full">
+      <div className="glass-card glow-cyan overflow-x-auto mt-8">
+        <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b border-white/10 bg-white/[0.02]">
               <th className="px-6 py-4 text-left"><div className="h-3 w-12 rounded-full bg-white/10 animate-pulse" /></th>
               <th className="px-6 py-4 text-left"><div className="h-3 w-24 rounded-full bg-white/10 animate-pulse" /></th>
               <th className="px-6 py-4 text-left"><div className="h-3 w-24 rounded-full bg-white/10 animate-pulse" /></th>
-              <th className="hidden px-6 py-4 text-left md:table-cell"><div className="h-3 w-20 rounded-full bg-white/10 animate-pulse" /></th>
-              <th className="hidden px-6 py-4 text-right md:table-cell"><div className="h-3 w-16 rounded-full bg-white/10 animate-pulse ml-auto" /></th>
+              <th className="px-6 py-4 text-left"><div className="h-3 w-20 rounded-full bg-white/10 animate-pulse" /></th>
+              <th className="px-6 py-4 text-right"><div className="h-3 w-16 rounded-full bg-white/10 animate-pulse ml-auto" /></th>
             </tr>
           </thead>
           <tbody>
@@ -61,11 +61,11 @@ export default function SkeletonLoader() {
                   <div className="h-4 w-40 rounded-full bg-white/5 animate-pulse" />
                 </td>
                 {/* Division */}
-                <td className="hidden px-6 py-5 md:table-cell">
+                <td className="px-6 py-5">
                   <div className="h-5 w-24 rounded-full bg-white/10 animate-pulse" />
                 </td>
                 {/* Score */}
-                <td className="hidden px-6 py-5 text-right md:table-cell">
+                <td className="px-6 py-5 text-right">
                   <div className="h-5 w-12 rounded bg-accent-gold/20 animate-pulse ml-auto" />
                 </td>
               </tr>
