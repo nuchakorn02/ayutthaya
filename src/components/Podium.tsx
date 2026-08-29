@@ -48,10 +48,16 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
         <div className="flex w-1/3 max-w-[140px] flex-col items-center animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="relative mb-3 flex flex-col items-center">
             {renderRankChange(p2)}
-            <div className="relative flex h-14 w-14 sm:h-20 sm:w-20 items-center justify-center rounded-full border-4 border-slate-300 bg-[#0c0c1e] shadow-[0_0_20px_rgba(203,213,225,0.3)] z-10">
-              <span className="text-2xl sm:text-4xl">🥈</span>
+            <div className="relative flex h-14 w-14 sm:h-20 sm:w-20 items-center justify-center rounded-full border-4 border-slate-300 bg-[#0c0c1e] shadow-[0_0_20px_rgba(203,213,225,0.3)] z-10 overflow-hidden">
+              <img
+                src={`/api/roblox/avatar/${encodeURIComponent(p2.player_name)}`}
+                alt={p2.player_name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
             </div>
-            <div className="mt-2 text-center">
+            <div className="absolute -bottom-2 z-20 text-lg sm:text-2xl drop-shadow-md">🥈</div>
+            <div className="mt-4 text-center">
               <div className="font-bold text-text-primary text-xs sm:text-base truncate max-w-[100px] sm:max-w-[140px]">{p2.player_name}</div>
               <div className="text-[10px] sm:text-xs text-slate-300">{cleanDivision(p2.division)}</div>
               <div className="mt-1 font-mono text-xs sm:text-sm font-black text-slate-200">
@@ -73,10 +79,16 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
             <div className="absolute -top-7 sm:-top-10 z-20 animate-float text-3xl sm:text-5xl drop-shadow-[0_0_15px_rgba(251,191,36,0.8)]">
               👑
             </div>
-            <div className="relative flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded-full border-4 border-amber-400 bg-[#0c0c1e] shadow-[0_0_30px_rgba(251,191,36,0.4)] z-10">
-              <span className="text-3xl sm:text-5xl">🥇</span>
+            <div className="relative flex h-16 w-16 sm:h-24 sm:w-24 items-center justify-center rounded-full border-4 border-amber-400 bg-[#0c0c1e] shadow-[0_0_30px_rgba(251,191,36,0.4)] z-10 overflow-hidden">
+              <img
+                src={`/api/roblox/avatar/${encodeURIComponent(p1.player_name)}`}
+                alt={p1.player_name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
             </div>
-            <div className="mt-2 text-center">
+            <div className="absolute -bottom-2 z-20 text-xl sm:text-3xl drop-shadow-md">🥇</div>
+            <div className="mt-4 text-center">
               <div className="font-bold text-amber-400 text-sm sm:text-lg truncate max-w-[120px] sm:max-w-[160px]">{p1.player_name}</div>
               <div className="text-[10px] sm:text-xs text-amber-200/70">{cleanDivision(p1.division)}</div>
               <div className="mt-1 font-mono text-sm sm:text-base font-black text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]">
@@ -96,10 +108,16 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
         <div className="flex w-1/3 max-w-[140px] flex-col items-center animate-slide-up" style={{ animationDelay: '0.3s' }}>
           <div className="relative mb-3 flex flex-col items-center">
             {renderRankChange(p3)}
-            <div className="relative flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full border-4 border-[#cd7f32] bg-[#0c0c1e] shadow-[0_0_20px_rgba(205,127,50,0.3)] z-10">
-              <span className="text-xl sm:text-3xl">🥉</span>
+            <div className="relative flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full border-4 border-[#cd7f32] bg-[#0c0c1e] shadow-[0_0_20px_rgba(205,127,50,0.3)] z-10 overflow-hidden">
+              <img
+                src={`/api/roblox/avatar/${encodeURIComponent(p3.player_name)}`}
+                alt={p3.player_name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
             </div>
-            <div className="mt-2 text-center">
+            <div className="absolute -bottom-2 z-20 text-base sm:text-xl drop-shadow-md">🥉</div>
+            <div className="mt-4 text-center">
               <div className="font-bold text-text-primary text-[10px] sm:text-sm truncate max-w-[100px] sm:max-w-[140px]">{p3.player_name}</div>
               <div className="text-[9px] sm:text-[11px] text-[#cd7f32]">{cleanDivision(p3.division)}</div>
               <div className="mt-1 font-mono text-[10px] sm:text-xs font-black text-[#cd7f32]">
