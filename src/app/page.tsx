@@ -49,11 +49,11 @@ export default function HomePage() {
     }) + ' น.';
   };
 
-  const fetchPlayers = useCallback(async (currentDiv?: string) => {
+  const fetchPlayers = useCallback(async () => {
     setLoading(true);
     setFetchError(null);
     try {
-      const url = currentDiv ? `/api/players?division=${encodeURIComponent(currentDiv)}` : '/api/players';
+      const url = '/api/players';
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const json = await res.json();
@@ -76,26 +76,31 @@ export default function HomePage() {
     }
   }, []);
 
-  // Fetch when division changes
+  // Fetch all players on mount
   useEffect(() => {
-    fetchPlayers(division);
-  }, [division, fetchPlayers]);
+    fetchPlayers();
+  }, [fetchPlayers]);
 
   // Auto-refresh every 5 minutes so viewers see latest scores without manual reload
   useEffect(() => {
     const autoRefresh = setInterval(() => {
-      fetchPlayers(division);
+      fetchPlayers();
     }, 5 * 60 * 1000);
     return () => clearInterval(autoRefresh);
-  }, [division, fetchPlayers]);
+  }, [fetchPlayers]);
 
   // Local filtering and sorting logic for division and search
   useEffect(() => {
     let result = [...players];
+    
+    // First, filter by division if selected
     if (division) {
+      result = result.filter(p => p.division === division);
       // Sort by created_at ascending for specific divisions
       result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     } else {
+      // General leaderboard (all divisions)
+      result = result.filter(p => p.division !== 'ปลดประจำการ');
       // Sort by total_score descending for general leaderboard
       result.sort((a, b) => b.total_score - a.total_score);
     }
@@ -107,6 +112,8 @@ export default function HomePage() {
 
     setFilteredPlayers(result);
   }, [players, division, search]);
+
+  const divisionCounts = players.reduce((acc, p) => { acc[p.division] = (acc[p.division] || 0) + 1; return acc; }, {} as Record<string, number>);
 
   // คำนวณการเปลี่ยนแปลงลำดับ (rank positions moved ▲/▼)
   // แต่โชว์เฉพาะคนที่แต้มตัวเองเปลี่ยนจริงๆ เท่านั้น
@@ -142,8 +149,6 @@ export default function HomePage() {
 
     setRankChanges(changes);
   }, [players]);
-
-  const divisionCounts = players.reduce((acc, p) => { acc[p.division] = (acc[p.division] || 0) + 1; return acc; }, {} as Record<string, number>);
 
   const handleDivisionChange = (value: string) => {
     setDivision(value);
@@ -309,7 +314,7 @@ export default function HomePage() {
             <h3 className="mb-2 text-lg font-bold text-accent-crimson">ไม่สามารถโหลดข้อมูลได้</h3>
             <p className="text-center text-sm text-text-secondary mb-6">{fetchError}</p>
             <button
-              onClick={() => fetchPlayers(division)}
+              onClick={() => fetchPlayers()}
               className="glass-card flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-accent-gold border border-accent-gold/30 rounded-xl hover:border-accent-gold/60 hover:bg-accent-gold/5 transition-all hover:scale-105 cursor-pointer"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
