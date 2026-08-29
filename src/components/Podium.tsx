@@ -56,8 +56,8 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
                 loading="lazy"
               />
             </div>
-            <div className="absolute -bottom-2 z-20 text-lg sm:text-2xl drop-shadow-md">🥈</div>
-            <div className="mt-4 text-center">
+            <div className="-mt-3 sm:-mt-4 z-20 text-lg sm:text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🥈</div>
+            <div className="mt-1 text-center">
               <div className="font-bold text-text-primary text-xs sm:text-base truncate max-w-[100px] sm:max-w-[140px]">{p2.player_name}</div>
               <div className="text-[10px] sm:text-xs text-slate-300">{cleanDivision(p2.division)}</div>
               <div className="mt-1 font-mono text-xs sm:text-sm font-black text-slate-200">
@@ -87,8 +87,8 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
                 loading="lazy"
               />
             </div>
-            <div className="absolute -bottom-2 z-20 text-xl sm:text-3xl drop-shadow-md">🥇</div>
-            <div className="mt-4 text-center">
+            <div className="-mt-4 sm:-mt-5 z-20 text-xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🥇</div>
+            <div className="mt-1 text-center">
               <div className="font-bold text-amber-400 text-sm sm:text-lg truncate max-w-[120px] sm:max-w-[160px]">{p1.player_name}</div>
               <div className="text-[10px] sm:text-xs text-amber-200/70">{cleanDivision(p1.division)}</div>
               <div className="mt-1 font-mono text-sm sm:text-base font-black text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]">
@@ -116,8 +116,8 @@ export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
                 loading="lazy"
               />
             </div>
-            <div className="absolute -bottom-2 z-20 text-base sm:text-xl drop-shadow-md">🥉</div>
-            <div className="mt-4 text-center">
+            <div className="-mt-3 sm:-mt-3.5 z-20 text-base sm:text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🥉</div>
+            <div className="mt-1 text-center">
               <div className="font-bold text-text-primary text-[10px] sm:text-sm truncate max-w-[100px] sm:max-w-[140px]">{p3.player_name}</div>
               <div className="text-[9px] sm:text-[11px] text-[#cd7f32]">{cleanDivision(p3.division)}</div>
               <div className="mt-1 font-mono text-[10px] sm:text-xs font-black text-[#cd7f32]">
