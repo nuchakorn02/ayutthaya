@@ -25,42 +25,62 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges }: L
   }
 
   return (
-    <div className="glass-card glow-cyan overflow-x-auto">
-      <table className="w-full min-w-[700px]">
-        {/* Table Header */}
-        <thead>
-          <tr className="border-b border-white/10 bg-white/[0.02]">
-            <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-              {isSortedByScore ? 'อันดับ' : 'ลำดับ'}
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-              ชื่อผู้เล่น
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-              ตำแหน่ง
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
-              กอง
-            </th>
-            <th className="px-6 py-4 text-right text-xs font-semibold tracking-wider text-text-secondary uppercase">
-              คะแนนรวม
-            </th>
-          </tr>
-        </thead>
+    <>
+      {/* Mobile: Card List (shown only below md) */}
+      <div className="md:hidden space-y-0">
+        <table className="w-full">
+          <tbody>
+            {players.map((player, index) => (
+              <PlayerRow
+                key={player.id}
+                player={player}
+                rank={index + 1}
+                isSortedByScore={isSortedByScore}
+                rankChange={rankChanges ? rankChanges[player.id] : undefined}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Table Body */}
-        <tbody>
-          {players.map((player, index) => (
-            <PlayerRow
-              key={player.id}
-              player={player}
-              rank={index + 1}
-              isSortedByScore={isSortedByScore}
-              rankChange={rankChanges ? rankChanges[player.id] : undefined}
-            />
-          ))}
-        </tbody>
-      </table>
-    </div>
+      {/* Desktop: Full Table (shown only at md+) */}
+      <div className="hidden md:block glass-card glow-cyan overflow-x-auto">
+        <table className="w-full min-w-[700px]">
+          {/* Table Header */}
+          <thead>
+            <tr className="border-b border-white/10 bg-white/[0.02]">
+              <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
+                {isSortedByScore ? 'อันดับ' : 'ลำดับ'}
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
+                ชื่อผู้เล่น
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
+                ตำแหน่ง
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-semibold tracking-wider text-text-secondary uppercase">
+                กอง
+              </th>
+              <th className="px-6 py-4 text-right text-xs font-semibold tracking-wider text-text-secondary uppercase">
+                คะแนนรวม
+              </th>
+            </tr>
+          </thead>
+
+          {/* Table Body */}
+          <tbody>
+            {players.map((player, index) => (
+              <PlayerRow
+                key={player.id}
+                player={player}
+                rank={index + 1}
+                isSortedByScore={isSortedByScore}
+                rankChange={rankChanges ? rankChanges[player.id] : undefined}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
