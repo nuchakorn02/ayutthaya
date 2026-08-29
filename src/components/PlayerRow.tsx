@@ -379,7 +379,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
       >
         {/* Rank */}
         <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
+          <div className="relative inline-flex">
             <div
               className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-300 ${rankInfo.rankBg}`}
             >
@@ -392,14 +392,14 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
               )}
             </div>
 
-            {/* Rank Change Trend Indicator */}
+            {/* Rank Change Badge — floats over corner of rank box */}
             {isSortedByScore && rankChange !== undefined && rankChange !== 0 && (
-              <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                rankChange > 0 
-                  ? 'text-green-400 bg-green-500/10' 
-                  : 'text-red-400 bg-red-500/10'
+              <span className={`absolute -top-1.5 -right-1.5 inline-flex items-center justify-center text-[8px] font-black h-5 px-1.5 min-w-5 rounded-full border border-[#0a0a1a] ${
+                rankChange > 0
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-red-500/20 text-red-400 border-red-500/30'
               }`}>
-                {rankChange > 0 ? '▲' : '▼'} {Math.abs(rankChange)}
+                {rankChange > 0 ? '▲' : '▼'}{Math.abs(rankChange)}
               </span>
             )}
           </div>
