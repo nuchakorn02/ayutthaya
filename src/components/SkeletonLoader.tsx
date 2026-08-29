@@ -27,8 +27,34 @@ export default function SkeletonLoader() {
         </div>
       </div>
 
-      {/* Leaderboard Table Skeleton */}
-      <div className="glass-card glow-cyan overflow-x-auto mt-8">
+      {/* Mobile Leaderboard Skeleton (shown below md) */}
+      <div className="md:hidden space-y-4 mt-8">
+        {skeletonRows.map((_, index) => (
+          <div key={index} className="glass-card flex items-center justify-between p-4 h-24 border border-white/5 bg-white/[0.01]">
+            <div className="flex items-center gap-3 w-full">
+              {/* Rank */}
+              <div className="h-10 w-10 rounded-xl bg-white/5 animate-pulse flex-shrink-0" />
+              
+              {/* Avatar & Name */}
+              <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-white/10 animate-pulse flex-shrink-0" />
+                  <div className="space-y-2 w-full">
+                    <div className="h-4 w-32 rounded bg-white/10 animate-pulse" />
+                    <div className="h-3 w-40 rounded-full bg-white/5 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Score */}
+              <div className="h-8 w-16 rounded bg-accent-gold/20 animate-pulse flex-shrink-0" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Leaderboard Skeleton (shown md+) */}
+      <div className="hidden md:block glass-card glow-cyan overflow-x-auto mt-8">
         <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b border-white/10 bg-white/[0.02]">

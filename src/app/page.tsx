@@ -327,7 +327,13 @@ export default function HomePage() {
 
               {/* Leaderboard Table (only show if we have normal players OR if we are not filtering by Executive Board) */}
               {(normalPlayers.length > 0 || (division !== 'คณะผู้บริหาร' && normalPlayers.length === 0)) && (
-                <Leaderboard players={normalPlayers} isSortedByScore={!division} rankChanges={rankChanges} />
+                <Leaderboard
+                  players={normalPlayers}
+                  isSortedByScore={division === ''}
+                  rankChanges={rankChanges}
+                  searchQuery={search}
+                  onClearSearch={() => setSearch('')}
+                />
               )}
             </div>
           );
