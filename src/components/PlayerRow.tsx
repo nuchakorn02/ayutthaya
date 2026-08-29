@@ -508,9 +508,10 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
         <td colSpan={5}>
           <div
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`glass-card mx-2 mb-3 p-4 border border-white/5 cursor-pointer select-none transition-all duration-300 ${
+            className={`glass-card mx-2 mb-3 p-4 border border-white/5 cursor-pointer select-none transition-all duration-300 animate-slide-up opacity-0 ${
               isExpanded ? 'border-accent-gold/40 bg-white/[0.04]' : ''
             } ${rankInfo.glowClass}`}
+            style={{ animationDelay: `${Math.min((rank - 1) * 0.05, 1)}s`, animationFillMode: 'forwards' }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
