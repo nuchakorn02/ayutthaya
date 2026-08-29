@@ -2,6 +2,7 @@
 
 import { Player } from '@/lib/types';
 import PlayerRow from './PlayerRow';
+import Podium from './Podium';
 
 interface LeaderboardProps {
   players: Player[];
@@ -53,6 +54,11 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
 
   return (
     <>
+      {/* Top 3 Podium (Only show if not searching and sorted by score) */}
+      {!searchQuery && isSortedByScore && players.length >= 3 && (
+        <Podium topPlayers={players.slice(0, 3)} rankChanges={rankChanges} />
+      )}
+
       {/* Mobile: Card List (shown only below md) */}
       <div className="md:hidden space-y-0">
         <table className="w-full">

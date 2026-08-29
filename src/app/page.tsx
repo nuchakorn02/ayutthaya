@@ -143,6 +143,8 @@ export default function HomePage() {
     setRankChanges(changes);
   }, [players]);
 
+  const divisionCounts = players.reduce((acc, p) => { acc[p.division] = (acc[p.division] || 0) + 1; return acc; }, {} as Record<string, number>);
+
   const handleDivisionChange = (value: string) => {
     setDivision(value);
     setSearch('');
@@ -261,7 +263,7 @@ export default function HomePage() {
         <div className="flex flex-col gap-4 md:flex-row">
           <SearchBar value={search} onChange={setSearch} />
         </div>
-        <DivisionFilter value={division} onChange={handleDivisionChange} />
+        <DivisionFilter value={division} onChange={handleDivisionChange} counts={divisionCounts} />
       </div>
 
       {/* Leaderboard & Executive Board */}

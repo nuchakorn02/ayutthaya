@@ -461,6 +461,8 @@ export default function AdminPage() {
     'กองทัพที่ 4 เกาโมทก': 'text-sky-400',
   };
 
+  const divisionCounts = allPlayers.reduce((acc, p) => { acc[p.division] = (acc[p.division] || 0) + 1; return acc; }, {} as Record<string, number>);
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-6">
       {/* Navigation */}
@@ -548,6 +550,7 @@ export default function AdminPage() {
 
       {/* Section 2: Player Management */}
       <AdminPlayerManager 
+        divisionCounts={divisionCounts}
         filteredPlayers={filteredPlayers}
         loading={loading}
         search={search}

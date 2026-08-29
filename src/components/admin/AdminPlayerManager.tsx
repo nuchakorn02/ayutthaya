@@ -21,6 +21,7 @@ interface AdminPlayerManagerProps {
   handleDeletePlayer: (player: Player) => void;
   openHistory: (player: Player) => void;
   rankThresholds: any[];
+  divisionCounts: Record<string, number>;
 }
 
 export default function AdminPlayerManager({
@@ -39,7 +40,8 @@ export default function AdminPlayerManager({
   handleEditPlayer,
   handleDeletePlayer,
   openHistory,
-  rankThresholds
+  rankThresholds,
+  divisionCounts
 }: AdminPlayerManagerProps) {
   return (
     <section className="mb-10 animate-slide-up" style={{ animationDelay: '0.15s' }}>
@@ -129,7 +131,7 @@ export default function AdminPlayerManager({
       {/* Search and Filter */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row">
         <SearchBar value={search} onChange={setSearch} />
-        <DivisionFilter value={division} onChange={handleDivisionChange} />
+        <DivisionFilter value={division} onChange={handleDivisionChange} counts={divisionCounts} />
       </div>
 
       {/* Players Table */}

@@ -3,6 +3,7 @@
 interface DivisionFilterProps {
   value: string;
   onChange: (value: string) => void;
+  counts?: Record<string, number>;
 }
 
 const divisions = [
@@ -18,11 +19,21 @@ const divisions = [
   { value: 'กองทัพที่ 4 เกาโมทก', label: 'กองทัพที่ 4 เกาโมทก', color: 'bg-sky-400' },
 ];
 
-export default function DivisionFilter({ value, onChange }: DivisionFilterProps) {
+export default function DivisionFilter({ value, onChange, counts }: DivisionFilterProps) {
+  // calculate total players if counts is provided
+  const totalPlayers = counts ? Object.values(counts).reduce((sum, count) => sum + count, 0) : 0;
+
   return (
     <div className="flex flex-wrap gap-2 justify-center md:justify-start">
       {divisions.map((div) => {
         const isActive = value === div.value;
+        const count = counts 
+          ? (div.value === '' ? totalPlayers : (counts[div.value] || 0))
+          : undefined;
+
+        // Optionally hide empty divisions if counts are provided (except 'All')
+        if (counts && div.value !== '' && count === 0) return null;
+
         return (
           <button
             key={div.value}
@@ -37,11 +48,16 @@ export default function DivisionFilter({ value, onChange }: DivisionFilterProps)
           >
             {/* Color indicator dot */}
             <span
-              className={`h-2 w-2 rounded-full ${div.color} ${
+              className={`h-2 w-2 flex-shrink-0 rounded-full ${div.color} ${
                 isActive ? 'animate-pulse-glow shadow-[0_0_8px_currentColor]' : 'opacity-60'
               }`}
             />
-            {div.label}
+            <span>{div.label}</span>
+            {count !== undefined && (
+              <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${isActive ? 'bg-accent-gold/20 text-accent-gold' : 'bg-white/5 text-text-secondary'}`}>
+                {count}
+              </span>
+            )}
           </button>
         );
       })}
