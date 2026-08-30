@@ -173,8 +173,13 @@ export default function AdminPlayerManager({
                   <tr key={player.id} className="border-b border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-accent-gold/20 flex items-center justify-center text-lg">
-                          🪖
+                        <div className="relative h-8 w-8 rounded-full overflow-hidden border border-white/10 bg-white/5 flex-shrink-0">
+                          <img
+                            src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
+                            alt={player.player_name}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
                         </div>
                         <div className="font-semibold text-text-primary">
                           {player.player_name}
