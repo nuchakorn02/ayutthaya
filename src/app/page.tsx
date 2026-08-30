@@ -24,9 +24,9 @@ export default function HomePage() {
   const slideImages = [
     '/Banner1.webp',
     '/Banner2.webp',
-    '/Banner3.png',
-    '/Banner4.png',
-    '/Banner5.png'
+    '/banner3.png',
+    '/banner4.png',
+    '/banner5.png'
   ];
 
   // Auto-slide effect every 2 seconds
