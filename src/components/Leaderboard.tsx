@@ -56,7 +56,7 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
     <>
       {/* Top 3 Podium (Only show if not searching and sorted by score) */}
       {!searchQuery && isSortedByScore && players.length >= 3 && (
-        <Podium topPlayers={players.slice(0, 3)} rankChanges={rankChanges} />
+        <Podium topPlayers={players.slice(0, 3)} />
       )}
 
       {/* Mobile: Card List (shown only below md) */}

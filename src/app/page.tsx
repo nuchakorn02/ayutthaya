@@ -113,7 +113,9 @@ export default function HomePage() {
     setFilteredPlayers(result);
   }, [players, division, search]);
 
-  const divisionCounts = players.reduce((acc, p) => { acc[p.division] = (acc[p.division] || 0) + 1; return acc; }, {} as Record<string, number>);
+  const divisionCounts = players
+    .filter(p => p.division !== 'ปลดประจำการ')
+    .reduce((acc, p) => { acc[p.division] = (acc[p.division] || 0) + 1; return acc; }, {} as Record<string, number>);
 
   // คำนวณการเปลี่ยนแปลงลำดับ (rank positions moved ▲/▼)
   // แต่โชว์เฉพาะคนที่แต้มตัวเองเปลี่ยนจริงๆ เท่านั้น

@@ -1,23 +1,17 @@
 import React from 'react';
 import { Player } from '@/lib/types';
-import { getDisplayPosition, calculateDefaultPosition } from '@/lib/positionUtils';
 
 interface PodiumProps {
   topPlayers: Player[];
-  rankChanges?: Record<string, number>;
 }
 
-export default function Podium({ topPlayers, rankChanges }: PodiumProps) {
+export default function Podium({ topPlayers }: PodiumProps) {
   if (!topPlayers || topPlayers.length === 0) return null;
 
   // We want to arrange them as: [2nd, 1st, 3rd]
   const p1 = topPlayers[0];
   const p2 = topPlayers[1];
   const p3 = topPlayers[2];
-
-  const getPositionStr = (p: Player) => {
-    return getDisplayPosition(p.position, p.total_score, p.division, []); // Pass empty thresholds, it will fallback to calculation or position string
-  };
 
   const cleanDivision = (div: string) => div.replace('กองทัพที่ ', 'ทัพ ').replace('กองทัพ', '');
 
