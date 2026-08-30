@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import * as XLSX from 'xlsx';
-import fs from 'fs';
-import path from 'path';
 import { createAdminClient } from '@/lib/supabase/server';
+import { calculateDefaultPosition } from '@/lib/positionUtils';
 import { sendDiscordWebhook } from '@/lib/discord';
 import type { ApiResponse } from '@/lib/types';
 
@@ -176,55 +175,6 @@ function matchDivisionFuzzy(valStr: string): string | null {
 }
 
 
-function getRankSettings() {
-  const settingsPath = path.join(process.cwd(), 'src', 'data', 'rankSettings.json');
-  try {
-    if (fs.existsSync(settingsPath)) {
-      const data = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
-      if (data && Array.isArray(data.thresholds) && data.thresholds.length > 0) {
-        // Sort by score descending to ensure correct evaluation order
-        return data.thresholds.sort((a: any, b: any) => b.score - a.score);
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load rank settings', e);
-  }
-  return [
-    { score: 600, policeTitle: 'พันตำรวจหลวง | Royal Police Colonel', guardTitle: 'นายพันเวร | Battalion Commander of Guardsmen' },
-    { score: 315, policeTitle: 'นายกองตำรวจหลวง | Royal Police Battalion Commander', guardTitle: 'นายกองเวร | Company Head Guardsmen' },
-    { score: 210, policeTitle: 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer', guardTitle: 'นายหมวดเวร | Platoon Head Guardsmen' },
-    { score: 110, policeTitle: 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader', guardTitle: 'นายหมู่เวร | Squad Head Guardsmen' },
-    { score: 60, policeTitle: 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper', guardTitle: 'พลทหารยามอาวุโส | Senior Guardsmen' },
-    { score: 45, policeTitle: 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper', guardTitle: 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen' },
-    { score: 20, policeTitle: 'พลประจำการตำรวจหลวง | Active Royal Police Trooper', guardTitle: 'พลทหารยาม | Guardsmen' },
-    { score: 0, policeTitle: 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)', guardTitle: 'พลอาสาสมัครทหารยาม | Junior Guardsmen' }
-  ];
-}
-
-function calculateDefaultPosition(score: number, division: string): string {
-  if (division === 'คณะผู้บริหาร') {
-    return 'คณะผู้บริหารส่วนกลาง';
-  }
-  if (division === 'กองทัพมหาเสือพิทักษ์') {
-    return 'ทหารเสือประจำพระองค์';
-  }
-  if (division === 'กองทัพธรณินพิทักษ์') {
-    return 'ทหารธรณินพิทักษ์';
-  }
-  if (division === 'กองทัพอาทมาต') {
-    return 'หมื่นอาทมาต';
-  }
-
-  const isPolice = division === 'กองพระตำรวจหลวง';
-  const thresholds = getRankSettings();
-
-  for (const t of thresholds) {
-    if (score >= t.score) return isPolice ? t.policeTitle : t.guardTitle;
-  }
-  
-  const last = thresholds[thresholds.length - 1];
-  return isPolice ? last.policeTitle : last.guardTitle;
-}
 
 
 export async function POST(request: NextRequest) {
@@ -255,6 +205,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { error: 'Only CSV and Excel files (.csv, .xlsx, .xls) are accepted.' } satisfies ApiResponse<never>,
           { status: 400 }
+        );
+      }
+
+      // S2 Fix: ป้องกัน DoS จากไฟล์ขนาดใหญ่ — จำกัดไว้ที่ 10MB
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { error: `ขนาดไฟล์ต้องไม่เกิน 10MB (ไฟล์ที่อัปโหลดมีขนาด ${(file.size / 1024 / 1024).toFixed(1)}MB)` } satisfies ApiResponse<never>,
+          { status: 413 }
         );
       }
 

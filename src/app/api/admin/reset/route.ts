@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { ApiResponse } from '@/lib/types';
 
-
-
 export async function POST(request: NextRequest) {
   try {
-    
+    // S1 Fix: Require explicit confirmation body — ป้องกัน accidental reset
+    const body = await request.json().catch(() => ({}));
+    if (body?.confirm !== 'RESET_ALL') {
+      return NextResponse.json(
+        { error: 'ต้องส่ง { "confirm": "RESET_ALL" } เพื่อยืนยันการล้างข้อมูลทั้งหมด' } satisfies ApiResponse<never>,
+        { status: 400 }
+      );
+    }
 
     const adminClient = createAdminClient();
 

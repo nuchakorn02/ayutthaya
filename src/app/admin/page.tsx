@@ -149,6 +149,8 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/reset', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'RESET_ALL' }),
       });
       if (!res.ok) {
         const json = await res.json();
