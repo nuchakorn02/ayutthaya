@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Simple in-memory cache to prevent hitting Roblox API limits too often
-const avatarCache = new Map<string, { url: string; expiry: number }>();
-const CACHE_DURATION = 1000 * 60 * 60 * 24; // Cache for 24 hours
-
 function makeFallbackSvg(username: string): string {
   const initials = username.slice(0, 2).toUpperCase();
   return `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
@@ -24,15 +20,9 @@ export async function GET(
 
   const cleanUsername = username.trim();
   const cacheKey = cleanUsername.toLowerCase();
-  
-  // Check cache first
-  const cached = avatarCache.get(cacheKey);
-  if (cached && cached.expiry > Date.now()) {
-    return NextResponse.redirect(cached.url, { status: 302 });
-  }
 
   try {
-    // 1. Get user ID from Roblox
+    // 1. Get user ID from Roblox with Next.js fetch cache (24 hours)
     const userRes = await fetch('https://users.roblox.com/v1/usernames/users', {
       method: 'POST',
       headers: {
@@ -42,7 +32,8 @@ export async function GET(
       body: JSON.stringify({
         usernames: [cleanUsername],
         excludeBannedUsers: false
-      })
+      }),
+      next: { revalidate: 86400 } // Cache for 24 hours via Next.js Data Cache
     });
 
     if (!userRes.ok) {
@@ -53,7 +44,6 @@ export async function GET(
     const user = userData.data?.[0];
 
     if (!user || !user.id) {
-      // User not found in Roblox, return SVG directly
       return new NextResponse(makeFallbackSvg(cleanUsername), {
         headers: {
           'Content-Type': 'image/svg+xml',
@@ -64,9 +54,10 @@ export async function GET(
 
     const userId = user.id;
 
-    // 2. Get Avatar Image from Roblox
+    // 2. Get Avatar Image from Roblox with Next.js fetch cache
     const thumbRes = await fetch(
-      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=100x100&format=Png&isCircular=true`
+      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=100x100&format=Png&isCircular=true`,
+      { next: { revalidate: 86400 } }
     );
 
     if (!thumbRes.ok) {
@@ -80,16 +71,15 @@ export async function GET(
       throw new Error('No image URL returned from Roblox');
     }
 
-    // Save in cache
-    avatarCache.set(cacheKey, {
-      url: imageUrl,
-      expiry: Date.now() + CACHE_DURATION
+    // Set Cache-Control header so CDN/Browser also caches the redirect
+    return NextResponse.redirect(imageUrl, {
+      status: 302,
+      headers: {
+        'Cache-Control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=86400',
+      }
     });
-
-    return NextResponse.redirect(imageUrl, { status: 302 });
   } catch (error) {
     console.error(`Failed to fetch Roblox avatar for ${cleanUsername}:`, error);
-    // Return SVG fallback avatar directly on error
     return new NextResponse(makeFallbackSvg(cleanUsername), {
       headers: {
         'Content-Type': 'image/svg+xml',

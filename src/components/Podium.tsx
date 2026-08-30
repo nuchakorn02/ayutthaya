@@ -27,7 +27,7 @@ export default function Podium({ topPlayers }: PodiumProps) {
                 src={`/api/roblox/avatar/${encodeURIComponent(p2.player_name)}`}
                 alt={p2.player_name}
                 className="h-full w-full object-cover"
-                loading="lazy"
+                loading="eager"
               />
             </div>
             <div className="-mt-3 sm:-mt-4 z-20 text-lg sm:text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🥈</div>
@@ -58,7 +58,7 @@ export default function Podium({ topPlayers }: PodiumProps) {
                 src={`/api/roblox/avatar/${encodeURIComponent(p1.player_name)}`}
                 alt={p1.player_name}
                 className="h-full w-full object-cover"
-                loading="lazy"
+                loading="eager"
               />
             </div>
             <div className="-mt-4 sm:-mt-5 z-20 text-xl sm:text-3xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🥇</div>
@@ -87,7 +87,7 @@ export default function Podium({ topPlayers }: PodiumProps) {
                 src={`/api/roblox/avatar/${encodeURIComponent(p3.player_name)}`}
                 alt={p3.player_name}
                 className="h-full w-full object-cover"
-                loading="lazy"
+                loading="eager"
               />
             </div>
             <div className="-mt-3 sm:-mt-3.5 z-20 text-base sm:text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">🥉</div>
