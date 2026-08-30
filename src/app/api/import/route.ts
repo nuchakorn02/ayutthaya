@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import * as XLSX from 'xlsx';
 import { createAdminClient } from '@/lib/supabase/server';
 import { calculateDefaultPosition } from '@/lib/positionUtils';
