@@ -56,7 +56,7 @@ export async function GET(
 
     // 2. Get Avatar Image from Roblox with Next.js fetch cache
     const thumbRes = await fetch(
-      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=100x100&format=Png&isCircular=true`,
+      `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=100x100&format=Webp&isCircular=true`,
       { next: { revalidate: 86400 } }
     );
 
