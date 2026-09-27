@@ -22,10 +22,10 @@ export default function HomePage() {
   // Slideshow banner setup
   const [currentSlide, setCurrentSlide] = useState(0);
   const slideImages = [
-    '/Banner1.webp',
-    '/Banner2.webp',
-    '/banner3.png',
-    '/banner4.png',
+    '/Banner1.png',
+    '/Banner2.png',
+    '/Banner3.png',
+    '/Banner4.png',
     '/banner5.png'
   ];
 
