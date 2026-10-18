@@ -1,31 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { ApiResponse } from '@/lib/types';
-
-
-
-function calculateDefaultPosition(score: number, division: string): string {
-  if (division === 'กองทัพมหาเสือพิทักษ์') {
-    return 'ทหารเสือประจำพระองค์';
-  }
-  if (division === 'กองทัพธรณินพิทักษ์') {
-    return 'ทหารธรณินพิทักษ์';
-  }
-  if (division === 'กองทัพอาทมาต') {
-    return 'หมื่นอาทมาต';
-  }
-
-  const isPolice = division === 'กองพระตำรวจหลวง';
-
-  if (score >= 600) return isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen';
-  if (score >= 315) return isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen';
-  if (score >= 210) return isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen';
-  if (score >= 110) return isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen';
-  if (score >= 60) return isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen';
-  if (score >= 45) return isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen';
-  if (score >= 20) return isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen';
-  return isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
-}
+import { calculateDefaultPosition } from '@/lib/positionUtils';
+import { sendDiscordWebhook } from '@/lib/discord';
 
 export async function POST(
   request: NextRequest,
@@ -155,8 +132,6 @@ export async function POST(
     // Send Discord Webhook notification in background
     (async () => {
       try {
-        const { sendDiscordWebhook } = require('@/lib/discord');
-
         const embed = {
           title: '⚠️ แจ้งยกเลิกแต้มรอบล่าสุดจ้า',
           description: 'แอดมินขอยกเลิกการปรับแต้มของรอบที่แล้วน้า ตอนนี้ดึงคะแนนของทุกคนกลับไปเป็นแบบเดิมก่อนหน้านี้เรียบร้อยแล้วครับ',

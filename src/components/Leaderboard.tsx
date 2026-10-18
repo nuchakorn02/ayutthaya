@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Player } from '@/lib/types';
 import PlayerRow from './PlayerRow';
 import Podium from './Podium';
@@ -12,7 +13,16 @@ interface LeaderboardProps {
   onClearSearch?: () => void;
 }
 
+const PAGE_SIZE = 50;
+
 export default function Leaderboard({ players, isSortedByScore, rankChanges, searchQuery, onClearSearch }: LeaderboardProps) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+
+  // Reset pagination whenever player list or sort order changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [players.length, isSortedByScore, searchQuery]);
+
   if (players.length === 0) {
     return (
       <div className="glass-card glow-cyan flex flex-col items-center justify-center px-8 py-20">
@@ -52,6 +62,9 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
     );
   }
 
+  const visiblePlayers = players.slice(0, visibleCount);
+  const hasMore = visibleCount < players.length;
+
   return (
     <>
       {/* Top 3 Podium (Only show if not searching and sorted by score) */}
@@ -63,7 +76,7 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
       <div className="md:hidden space-y-0">
         <table className="w-full">
           <tbody>
-            {players.map((player, index) => (
+            {visiblePlayers.map((player, index) => (
               <PlayerRow
                 key={player.id}
                 player={player}
@@ -102,7 +115,7 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
 
           {/* Table Body */}
           <tbody>
-            {players.map((player, index) => (
+            {visiblePlayers.map((player, index) => (
               <PlayerRow
                 key={player.id}
                 player={player}
@@ -114,6 +127,36 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
           </tbody>
         </table>
       </div>
+
+      {/* Pagination / Load More Controls */}
+      {hasMore && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 px-2 py-3 rounded-2xl glass-card border border-white/5">
+          <p className="text-xs text-text-secondary">
+            กำลังแสดง <span className="font-bold text-accent-gold">{visiblePlayers.length}</span> จากทั้งหมด <span className="font-bold text-text-primary">{players.length}</span> นาย
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, players.length))}
+              className="glass-card flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-accent-gold border border-accent-gold/30 rounded-xl hover:border-accent-gold hover:bg-accent-gold/10 transition-all hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.08)]"
+            >
+              <span>➕</span>
+              <span>โหลดเพิ่ม 50 นาย (เหลืออีก {players.length - visibleCount})</span>
+            </button>
+            <button
+              onClick={() => setVisibleCount(players.length)}
+              className="glass-card px-3 py-2 text-xs font-semibold text-text-secondary border border-white/10 rounded-xl hover:text-text-primary hover:border-white/20 transition-all cursor-pointer"
+            >
+              แสดงทั้งหมด
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!hasMore && players.length > PAGE_SIZE && (
+        <p className="mt-6 text-center text-xs text-text-secondary/50">
+          ✓ แสดงรายชื่อกำลังพลครบทั้งหมด {players.length} นายแล้ว
+        </p>
+      )}
     </>
   );
 }

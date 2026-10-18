@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { calculateDefaultPosition } from '@/lib/positionUtils';
+import type { RankThreshold } from '@/lib/types';
+import { DIVISIONS } from '@/lib/constants';
 
 interface AddPlayerModalProps {
   isOpen: boolean;
@@ -8,56 +11,30 @@ interface AddPlayerModalProps {
   onAdd: () => void;
 }
 
-const divisions = [
-  'คณะผู้บริหาร',
-  'กองทัพมหาเสือพิทักษ์',
-  'กองทัพธรณินพิทักษ์',
-  'กองทัพอาทมาต',
-  'กองพระตำรวจหลวง',
-  'กองทัพที่ 1 ปัญจะซันยะ',
-  'กองทัพที่ 2 วัชรนาถ',
-  'กองทัพที่ 3 ปุณฑริก',
-  'กองทัพที่ 4 เกาโมทก'
-];
-
-function calculateDefaultPosition(score: number, division: string): string {
-  if (division === 'คณะผู้บริหาร') {
-    return 'คณะผู้บริหารส่วนกลาง';
-  }
-  if (division === 'กองทัพมหาเสือพิทักษ์') {
-    return 'ทหารเสือประจำพระองค์';
-  }
-  if (division === 'กองทัพธรณินพิทักษ์') {
-    return 'ทหารธรณินพิทักษ์';
-  }
-  if (division === 'กองทัพอาทมาต') {
-    return 'หมื่นอาทมาต';
-  }
-
-  const isPolice = division === 'กองพระตำรวจหลวง';
-
-  if (score >= 600) return isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen';
-  if (score >= 315) return isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen';
-  if (score >= 210) return isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen';
-  if (score >= 110) return isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen';
-  if (score >= 60) return isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen';
-  if (score >= 45) return isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen';
-  if (score >= 20) return isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen';
-  return isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
-}
-
 export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModalProps) {
   const [playerName, setPlayerName] = useState('');
-  const [division, setDivision] = useState(divisions[0]);
+  const [division, setDivision] = useState<string>(DIVISIONS[0]);
   const [score, setScore] = useState('0');
   const [position, setPosition] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [thresholds, setThresholds] = useState<RankThreshold[]>([]);
+
+  useEffect(() => {
+    fetch('/api/settings/ranks')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.thresholds && Array.isArray(data.thresholds)) {
+          setThresholds(data.thresholds.sort((a: RankThreshold, b: RankThreshold) => b.score - a.score));
+        }
+      })
+      .catch((err) => console.error('Failed to load rank thresholds in AddPlayerModal:', err));
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       setPlayerName('');
-      setDivision(divisions[0]);
+      setDivision(DIVISIONS[0]);
       setScore('0');
       setPosition('');
       setFeedback(null);
@@ -68,16 +45,16 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
 
   const handleAutoCalculatePosition = () => {
     const numScore = Number(score) || 0;
-    setPosition(calculateDefaultPosition(numScore, division));
+    setPosition(calculateDefaultPosition(numScore, division, thresholds));
   };
 
   // Automatically recalculate position if user switches division
   useEffect(() => {
     if (division && score) {
       const numScore = Number(score) || 0;
-      setPosition(calculateDefaultPosition(numScore, division));
+      setPosition(calculateDefaultPosition(numScore, division, thresholds));
     }
-  }, [division]);
+  }, [division, score, thresholds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,7 +174,7 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
                 outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
                 focus:border-accent-gold/40 focus:shadow-[0_0_15px_rgba(212,175,55,0.08)]"
             >
-              {divisions.map((div) => (
+              {DIVISIONS.map((div) => (
                 <option key={div} value={div} className="bg-[#111128] text-text-primary">
                   {div}
                 </option>

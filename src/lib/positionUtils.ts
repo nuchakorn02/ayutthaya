@@ -3,11 +3,7 @@
  * and the admin dashboard. Single source of truth — edit here to fix both.
  */
 
-interface RankThreshold {
-  score: number;
-  guardTitle: string;
-  policeTitle: string;
-}
+import type { RankThreshold } from '@/lib/types';
 
 /**
  * Calculate the default position/rank title for a player based on
@@ -70,4 +66,86 @@ export function getDisplayPosition(
     if (basePos.startsWith('พลอาสาสมัครทหารยาม')) return 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)';
   }
   return basePos;
+}
+
+export interface RankProgression {
+  isSpecialDivision: boolean;
+  isMaxRank: boolean;
+  nextRankName?: string;
+  pointsNeeded?: number;
+  percentage?: number;
+  currentMilestoneScore?: number;
+  nextMilestoneScore?: number;
+}
+
+/**
+ * Calculate the progress towards the next military rank for a given score and division.
+ * Supports dynamic rank thresholds configured by the administrator.
+ */
+export function getRankProgression(
+  score: number,
+  division: string,
+  thresholds: RankThreshold[] = []
+): RankProgression {
+  // Special divisions do not use score-based rank progression
+  if (
+    division === 'คณะผู้บริหาร' ||
+    division === 'กองทัพมหาเสือพิทักษ์' ||
+    division === 'กองทัพธรณินพิทักษ์' ||
+    division === 'กองทัพอาทมาต'
+  ) {
+    return {
+      isSpecialDivision: true,
+      isMaxRank: false,
+    };
+  }
+
+  const isPolice = division === 'กองพระตำรวจหลวง';
+
+  // Sort ascending by score to find the next milestone
+  const sortedThresholds: RankThreshold[] =
+    thresholds.length > 0
+      ? [...thresholds].sort((a, b) => a.score - b.score)
+      : [
+          { score: 20, guardTitle: 'Guardsmen (พลทหารยาม)', policeTitle: 'Active Trooper (พลประจำการตำรวจหลวง)' },
+          { score: 45, guardTitle: 'Royal Elite Guardsmen (พลทหารราชวัลลภพิเศษ)', policeTitle: 'Special Trooper (พลตำรวจหลวงพิเศษ)' },
+          { score: 60, guardTitle: 'Senior Guardsmen (พลทหารยามอาวุโส)', policeTitle: 'Senior Trooper (พลตำรวจหลวงอาวุโส)' },
+          { score: 110, guardTitle: 'Squad Head Guardsmen (นายหมู่เวร)', policeTitle: 'Squad Leader (นายหมู่ตำรวจหลวง)' },
+          { score: 210, guardTitle: 'Platoon Head Guardsmen (นายหมวดเวร)', policeTitle: 'Platoon Officer (นายหมวดตำรวจหลวง)' },
+          { score: 315, guardTitle: 'Company Head Guardsmen (นายกองเวร)', policeTitle: 'Battalion Commander (นายกองตำรวจหลวง)' },
+          { score: 600, guardTitle: 'Battalion Commander (นายพันเวร)', policeTitle: 'Colonel (พันตำรวจหลวง)' },
+        ];
+
+  // Filter out any threshold that is score 0 (base rank) when looking for the next milestone
+  const milestones = sortedThresholds.filter((m) => m.score > 0);
+
+  // Find next milestone where milestone.score > score
+  const nextMilestone = milestones.find((m) => m.score > score);
+
+  if (!nextMilestone) {
+    return {
+      isSpecialDivision: false,
+      isMaxRank: true,
+    };
+  }
+
+  // Previous milestone score
+  const prevMilestone = [...milestones].reverse().find((m) => m.score <= score);
+  const prevScore = prevMilestone ? prevMilestone.score : 0;
+
+  const totalDiff = Math.max(1, nextMilestone.score - prevScore);
+  const currentDiff = Math.max(0, score - prevScore);
+  const percentage = Math.max(0, Math.min(100, (currentDiff / totalDiff) * 100));
+  const pointsNeeded = Math.max(0, nextMilestone.score - score);
+  const nextRankName = isPolice ? nextMilestone.policeTitle : nextMilestone.guardTitle;
+
+  return {
+    isSpecialDivision: false,
+    isMaxRank: false,
+    nextRankName,
+    pointsNeeded,
+    percentage,
+    currentMilestoneScore: prevScore,
+    nextMilestoneScore: nextMilestone.score,
+  };
 }

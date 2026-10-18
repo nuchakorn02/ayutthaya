@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, createPublicServerClient } from '@/lib/supabase/server';
 import type { Player, ApiResponse } from '@/lib/types';
+import { DIVISIONS } from '@/lib/constants';
+import { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } from '@/lib/discord';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,8 +10,9 @@ export async function GET(request: NextRequest) {
     const division = searchParams.get('division');
     const search = searchParams.get('search');
 
-    const adminClient = createAdminClient();
-    let query = adminClient.from('players').select('*');
+    // Use anon public client for public read queries to adhere to principle of least privilege
+    const publicClient = createPublicServerClient();
+    let query = publicClient.from('players').select('*');
 
     if (division) {
       if (division === 'ปลดประจำการ') {
@@ -38,7 +41,7 @@ export async function GET(request: NextRequest) {
     // กรองเฉพาะ player IDs ที่อยู่ในผลลัพธ์เพื่อประสิทธิภาพ
     const playerIds = (players || []).map((p) => p.id);
     const { data: allHistory } = playerIds.length > 0
-      ? await adminClient
+      ? await publicClient
           .from('score_history')
           .select('player_id, score_diff, updated_at')
           .in('player_id', playerIds)
@@ -76,13 +79,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-
-
-
 export async function POST(request: NextRequest) {
   try {
-    
-
     const body = await request.json();
     const { player_name, division, total_score, position } = body;
 
@@ -93,19 +91,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const validDivisions = [
-      'คณะผู้บริหาร',
-      'กองทัพมหาเสือพิทักษ์',
-      'กองทัพธรณินพิทักษ์',
-      'กองทัพอาทมาต',
-      'กองพระตำรวจหลวง',
-      'กองทัพที่ 1 ปัญจะซันยะ',
-      'กองทัพที่ 2 วัชรนาถ',
-      'กองทัพที่ 3 ปุณฑริก',
-      'กองทัพที่ 4 เกาโมทก'
-    ];
-
-    if (!division || typeof division !== 'string' || !validDivisions.includes(division)) {
+    if (!division || typeof division !== 'string' || !DIVISIONS.includes(division as any)) {
       return NextResponse.json(
         { error: 'Invalid division. Must be one of the valid divisions.' } satisfies ApiResponse<never>,
         { status: 400 }
@@ -141,7 +127,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (data) {
-      const { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } = require('@/lib/discord');
       const newPlayer = data as Player;
 
       // Send webhook in background so API response is instant

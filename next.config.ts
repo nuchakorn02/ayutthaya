@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js ต้องการ unsafe-inline
+              "script-src 'self' 'unsafe-inline'", // Next.js ต้องการ unsafe-inline สำหรับ inline script hydration
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: https://tr.rbxcdn.com https://images.rbxcdn.com https://thumbnails.roblox.com blob:",

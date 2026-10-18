@@ -18,6 +18,7 @@ export default function HomePage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [rankChanges, setRankChanges] = useState<Record<string, number>>({});
+  const [divisionSortBy, setDivisionSortBy] = useState<'score' | 'created'>('score');
 
   // Slideshow banner setup
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -96,12 +97,14 @@ export default function HomePage() {
     // First, filter by division if selected
     if (division) {
       result = result.filter(p => p.division === division);
-      // Sort by created_at ascending for specific divisions
-      result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      if (divisionSortBy === 'created') {
+        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      } else {
+        result.sort((a, b) => b.total_score - a.total_score);
+      }
     } else {
       // General leaderboard (all divisions)
       result = result.filter(p => p.division !== 'ปลดประจำการ');
-      // Sort by total_score descending for general leaderboard
       result.sort((a, b) => b.total_score - a.total_score);
     }
 
@@ -111,7 +114,7 @@ export default function HomePage() {
     }
 
     setFilteredPlayers(result);
-  }, [players, division, search]);
+  }, [players, division, search, divisionSortBy]);
 
   // useMemo: คำนวณใหม่เฉพาะเมื่อ players เปลี่ยน ไม่ recalculate ทุก render
   const divisionCounts = useMemo(() =>
@@ -337,11 +340,46 @@ export default function HomePage() {
               {/* Executive Board */}
               <ExecutiveBoard players={execPlayers} />
 
+              {/* Division Sorting & Header Controls */}
+              {division && division !== 'คณะผู้บริหาร' && normalPlayers.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1 py-1">
+                  <div className="flex items-center gap-2 text-xs text-text-secondary">
+                    <span className="font-bold text-accent-gold">{division}</span>
+                    <span className="opacity-40">•</span>
+                    <span>กำลังพล {normalPlayers.length} นาย</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/40 p-1 backdrop-blur-md">
+                    <button
+                      onClick={() => setDivisionSortBy('score')}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                        divisionSortBy === 'score'
+                          ? 'bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(212,175,55,0.2)]'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      <span>🏆</span>
+                      <span>คะแนนสูงสุด</span>
+                    </button>
+                    <button
+                      onClick={() => setDivisionSortBy('created')}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                        divisionSortBy === 'created'
+                          ? 'bg-accent-gold/20 text-accent-gold border border-accent-gold/40 shadow-[0_0_10px_rgba(212,175,55,0.2)]'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      <span>📅</span>
+                      <span>ลำดับเข้าประจำการ</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Leaderboard Table (only show if we have normal players OR if we are not filtering by Executive Board) */}
               {(normalPlayers.length > 0 || (division !== 'คณะผู้บริหาร' && normalPlayers.length === 0)) && (
                 <Leaderboard
                   players={normalPlayers}
-                  isSortedByScore={division === ''}
+                  isSortedByScore={division === '' || divisionSortBy === 'score'}
                   rankChanges={rankChanges}
                   searchQuery={search}
                   onClearSearch={() => setSearch('')}
