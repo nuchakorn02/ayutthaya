@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Player, ScoreHistory } from '@/lib/types';
+import { Player, ScoreHistory, RankThreshold } from '@/lib/types';
 import AnimatedCounter from '@/components/AnimatedCounter';
-import { calculateDefaultPosition, getDisplayPosition } from '@/lib/positionUtils';
+import { calculateDefaultPosition, getDisplayPosition, getRankProgression } from '@/lib/positionUtils';
 import { DIVISION_COLORS } from '@/lib/constants';
 
 
@@ -42,6 +42,7 @@ interface PlayerRowProps {
   rank: number;
   isSortedByScore: boolean;
   rankChange?: number;
+  thresholds?: RankThreshold[];
 }
 
 
@@ -80,13 +81,13 @@ function getRankDisplay(rank: number) {
   }
 }
 
-export default function PlayerRow({ player, rank, isSortedByScore, rankChange }: PlayerRowProps) {
+export default function PlayerRow({ player, rank, isSortedByScore, rankChange, thresholds }: PlayerRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [history, setHistory] = useState<ScoreHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  const displayPosition = getDisplayPosition(player.position, player.total_score, player.division);
+  const displayPosition = getDisplayPosition(player.position, player.total_score, player.division, thresholds);
 
   const rankInfo = isSortedByScore
     ? getRankDisplay(rank)
@@ -240,59 +241,37 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
   };
 
   const drawNextRankProgress = () => {
-    const score = player.total_score;
-    const division = player.division;
+    const progression = getRankProgression(player.total_score, player.division, thresholds);
 
-    // Fixed-position divisions don't use score-based rank milestones — show honor badge instead
-    const fixedDivisions = ['คณะผู้บริหาร', 'กองทัพมหาเสือพิทักษ์', 'กองทัพธรณินพิทักษ์', 'กองทัพอาทมาต'];
-    if (fixedDivisions.includes(division)) {
+    if (progression.isSpecialDivision) {
       return (
         <div className="mt-4 p-4 rounded-xl border border-accent-gold/20 bg-accent-gold/5 text-center w-full max-w-md mx-auto">
           <p className="text-xs font-bold text-accent-gold uppercase tracking-wider">🏅 กองพิเศษ — ไม่ใช้ระบบยศตามคะแนน</p>
           <p className="text-[10px] text-text-secondary mt-1">
-            กองนี้มีตำแหน่งพิเศษเฉพาะสังกัด คะแนนปัจจุบัน: <span className="font-mono font-bold text-accent-gold-glowing">{score.toLocaleString()}</span> แต้ม
+            กองนี้มีตำแหน่งพิเศษเฉพาะสังกัด คะแนนปัจจุบัน: <span className="font-mono font-bold text-accent-gold-glowing">{player.total_score.toLocaleString()}</span> แต้ม
           </p>
         </div>
       );
     }
 
-    const isPolice = division === 'กองพระตำรวจหลวง';
-
-    // Ranks and their milestones
-    const milestones = [
-      { score: 20, rankName: 'Guardsmen (พลทหารยาม)', policeName: 'Active Trooper (พลประจำการตำรวจหลวง)' },
-      { score: 45, rankName: 'Royal Elite Guardsmen (พลทหารราชวัลลภพิเศษ)', policeName: 'Special Trooper (พลตำรวจหลวงพิเศษ)' },
-      { score: 60, rankName: 'Senior Guardsmen (พลทหารยามอาวุโส)', policeName: 'Senior Trooper (พลตำรวจหลวงอาวุโส)' },
-      { score: 110, rankName: 'Squad Head Guardsmen (นายหมู่เวร)', policeName: 'Squad Leader (นายหมู่ตำรวจหลวง)' },
-      { score: 210, rankName: 'Platoon Head Guardsmen (นายหมวดเวร)', policeName: 'Platoon Officer (นายหมวดตำรวจหลวง)' },
-      { score: 315, rankName: 'Company Head Guardsmen (นายกองเวร)', policeName: 'Battalion Commander (นายกองตำรวจหลวง)' },
-      { score: 600, rankName: 'Battalion Commander (นายพันเวร)', policeName: 'Colonel (พันตำรวจหลวง)' }
-    ];
-
-    // Find the next milestone
-    const nextMilestone = milestones.find((m) => m.score > score);
-    
-    if (!nextMilestone) {
+    if (progression.isMaxRank) {
       return (
         <div className="mt-4 p-4 rounded-xl border border-accent-gold/20 bg-accent-gold/5 text-center w-full max-w-md mx-auto">
           <p className="text-xs font-bold text-accent-gold uppercase tracking-wider">🏆 บรรลุระดับยศสูงสุดทางคะแนนแล้ว 🏆</p>
           <p className="text-[10px] text-text-secondary mt-1">
-            คะแนนปัจจุบัน: <span className="font-mono font-bold text-accent-gold-glowing">{score}</span> แต้ม (ระดับผู้บัญชาการทหารอาวุโส)
+            คะแนนปัจจุบัน: <span className="font-mono font-bold text-accent-gold-glowing">{player.total_score}</span> แต้ม (ระดับผู้บัญชาการทหารอาวุโส)
           </p>
         </div>
       );
     }
 
-    // Previous milestone score
-    const prevMilestoneScore = [...milestones].reverse().find((m) => m.score <= score)?.score || 0;
-    
-    // Calculate progress percentage
-    const totalDiff = nextMilestone.score - prevMilestoneScore;
-    const currentDiff = score - prevMilestoneScore;
-    const pct = Math.max(0, Math.min(100, (currentDiff / totalDiff) * 100));
-
-    const pointsNeeded = nextMilestone.score - score;
-    const nextRankName = isPolice ? nextMilestone.policeName : nextMilestone.rankName;
+    const {
+      nextRankName,
+      pointsNeeded = 0,
+      percentage = 0,
+      currentMilestoneScore = 0,
+      nextMilestoneScore = 0,
+    } = progression;
 
     return (
       <div className="mt-4 p-4 rounded-xl border border-white/5 bg-white/[0.01] w-full max-w-md mx-auto">
@@ -305,14 +284,14 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange }:
         <div className="relative w-full h-3 bg-white/5 border border-white/5 rounded-full overflow-hidden shadow-[inset_0_1px_3px_rgba(0,0,0,0.5)]">
           <div
             className="h-full rounded-full bg-gradient-to-r from-accent-gold to-amber-500 shadow-[0_0_8px_#d4af37] transition-all duration-500"
-            style={{ width: `${pct}%` }}
+            style={{ width: `${percentage}%` }}
           />
         </div>
 
         <div className="flex justify-between items-center text-[10px] text-text-secondary/50 mt-1.5 font-mono">
-          <span>{prevMilestoneScore} แต้ม</span>
-          <span className="text-accent-gold font-bold">{pct.toFixed(0)}% ({score.toFixed(2).replace(/\.00$/, '')} / {nextMilestone.score} แต้ม)</span>
-          <span>{nextMilestone.score} แต้ม</span>
+          <span>{currentMilestoneScore} แต้ม</span>
+          <span className="text-accent-gold font-bold">{percentage.toFixed(0)}% ({player.total_score.toFixed(2).replace(/\.00$/, '')} / {nextMilestoneScore} แต้ม)</span>
+          <span>{nextMilestoneScore} แต้ม</span>
         </div>
       </div>
     );

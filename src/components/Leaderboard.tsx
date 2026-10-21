@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Player } from '@/lib/types';
+import { Player, RankThreshold } from '@/lib/types';
 import PlayerRow from './PlayerRow';
 import Podium from './Podium';
 
@@ -11,11 +11,12 @@ interface LeaderboardProps {
   rankChanges?: Record<string, number>;
   searchQuery?: string;
   onClearSearch?: () => void;
+  thresholds?: RankThreshold[];
 }
 
 const PAGE_SIZE = 50;
 
-export default function Leaderboard({ players, isSortedByScore, rankChanges, searchQuery, onClearSearch }: LeaderboardProps) {
+export default function Leaderboard({ players, isSortedByScore, rankChanges, searchQuery, onClearSearch, thresholds }: LeaderboardProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // Reset pagination whenever player list or sort order changes
@@ -83,6 +84,7 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
                 rank={index + 1}
                 isSortedByScore={isSortedByScore}
                 rankChange={rankChanges ? rankChanges[player.id] : undefined}
+                thresholds={thresholds}
               />
             ))}
           </tbody>
@@ -122,6 +124,7 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
                 rank={index + 1}
                 isSortedByScore={isSortedByScore}
                 rankChange={rankChanges ? rankChanges[player.id] : undefined}
+                thresholds={thresholds}
               />
             ))}
           </tbody>

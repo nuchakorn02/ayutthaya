@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Player } from '@/lib/types';
+import { Player, RankThreshold } from '@/lib/types';
 import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
 import Leaderboard from '@/components/Leaderboard';
@@ -19,6 +19,19 @@ export default function HomePage() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [rankChanges, setRankChanges] = useState<Record<string, number>>({});
   const [divisionSortBy, setDivisionSortBy] = useState<'score' | 'created'>('score');
+  const [thresholds, setThresholds] = useState<RankThreshold[]>([]);
+
+  // Fetch rank thresholds for progression and positions
+  useEffect(() => {
+    fetch('/api/settings/ranks')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.thresholds && Array.isArray(data.thresholds)) {
+          setThresholds(data.thresholds);
+        }
+      })
+      .catch((err) => console.error('Failed to load rank thresholds in page:', err));
+  }, []);
 
   // Slideshow banner setup
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -383,6 +396,7 @@ export default function HomePage() {
                   rankChanges={rankChanges}
                   searchQuery={search}
                   onClearSearch={() => setSearch('')}
+                  thresholds={thresholds}
                 />
               )}
             </div>
