@@ -1,3 +1,5 @@
+import { createAdminClient } from '@/lib/supabase/server';
+
 interface DiscordEmbed {
   title?: string;
   description?: string;
@@ -20,6 +22,62 @@ export const DIVISION_EMBED_COLORS: Record<string, number> = {
   'กองทัพที่ 3 ปุณฑริก': 1096065, // Emerald #10B981
   'กองทัพที่ 4 เกาโมทก': 960489, // Sky #0EA5E9
 };
+
+export interface DiscordSettingsConfig {
+  enabled: boolean;
+  webhook_url?: string;
+  notify_on_import?: boolean;
+  notify_on_edit?: boolean;
+  notify_on_delete?: boolean;
+}
+
+let cachedSettings: {
+  config: DiscordSettingsConfig;
+  expiresAt: number;
+} | null = null;
+
+export function clearDiscordSettingsCache() {
+  cachedSettings = null;
+}
+
+export async function getDiscordSettings(): Promise<DiscordSettingsConfig> {
+  const now = Date.now();
+  if (cachedSettings && cachedSettings.expiresAt > now) {
+    return cachedSettings.config;
+  }
+
+  let dbConfig: DiscordSettingsConfig | null = null;
+  try {
+    const adminClient = createAdminClient();
+    const { data, error } = await adminClient
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'discord_settings')
+      .maybeSingle();
+
+    if (!error && data?.value) {
+      dbConfig = data.value as DiscordSettingsConfig;
+    }
+  } catch (err) {
+    console.warn('[Discord Webhook] Failed to fetch settings from DB, using fallback:', err);
+  }
+
+  const envWebhook = process.env.DISCORD_WEBHOOK_URL || '';
+  const resolvedConfig: DiscordSettingsConfig = {
+    enabled: dbConfig?.enabled ?? Boolean(envWebhook),
+    webhook_url: dbConfig?.webhook_url || envWebhook,
+    notify_on_import: dbConfig?.notify_on_import ?? true,
+    notify_on_edit: dbConfig?.notify_on_edit ?? true,
+    notify_on_delete: dbConfig?.notify_on_delete ?? true,
+  };
+
+  cachedSettings = {
+    config: resolvedConfig,
+    expiresAt: now + 30_000, // Cache for 30 seconds
+  };
+
+  return resolvedConfig;
+}
 
 /** Helper to fetch a direct Roblox user avatar headshot thumbnail URL */
 export async function getRobloxAvatarUrl(username: string): Promise<string | undefined> {
@@ -56,12 +114,26 @@ export async function sendDiscordWebhook(payload: {
   embeds?: DiscordEmbed[];
   username?: string;
   avatar_url?: string;
-}) {
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  eventType?: 'import' | 'edit' | 'delete' | 'test';
+}): Promise<boolean> {
+  const settings = await getDiscordSettings();
+
+  if (!settings.enabled) {
+    console.log('[Discord Webhook] Webhook is disabled in settings. Skipping.');
+    return false;
+  }
+
+  if (payload.eventType === 'import' && settings.notify_on_import === false) return false;
+  if (payload.eventType === 'edit' && settings.notify_on_edit === false) return false;
+  if (payload.eventType === 'delete' && settings.notify_on_delete === false) return false;
+
+  const webhookUrl = settings.webhook_url;
   if (!webhookUrl) {
     console.log('[Discord Webhook] Webhook URL not set. Skipping notification.');
-    return;
+    return false;
   }
+
+  const { eventType: _, ...discordBody } = payload;
 
   try {
     const res = await fetch(webhookUrl, {
@@ -69,16 +141,19 @@ export async function sendDiscordWebhook(payload: {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(discordBody),
     });
 
     if (!res.ok) {
       const text = await res.text();
       console.error(`[Discord Webhook] Failed to post webhook: ${res.status} ${text}`);
+      return false;
     } else {
       console.log('[Discord Webhook] Notification sent successfully.');
+      return true;
     }
   } catch (err) {
     console.error('[Discord Webhook] Error sending webhook:', err);
+    return false;
   }
 }

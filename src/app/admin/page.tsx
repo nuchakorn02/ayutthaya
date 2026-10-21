@@ -13,6 +13,7 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import AddPlayerModal from '@/components/AddPlayerModal';
 import ScoreHistoryModal from '@/components/ScoreHistoryModal';
 import RankSettingsModal from '@/components/RankSettingsModal';
+import DiscordSettingsModal from '@/components/DiscordSettingsModal';
 import type { ScoreHistory } from '@/lib/types';
 import { calculateDefaultPosition, getDisplayPosition } from '@/lib/positionUtils';
 import AdminAuditLogs, { AuditLog } from '@/components/admin/AdminAuditLogs';
@@ -72,6 +73,7 @@ export default function AdminPage() {
 
   // Rank Settings State
   const [rankSettingsOpen, setRankSettingsOpen] = useState(false);
+  const [discordSettingsOpen, setDiscordSettingsOpen] = useState(false);
   const [rankThresholds, setRankThresholds] = useState<any[]>([]);
 
   useEffect(() => {
@@ -564,6 +566,7 @@ export default function AdminPage() {
         resetDatabase={handleResetDatabase}
         isResetting={isResetting}
         setRankSettingsOpen={setRankSettingsOpen}
+        setDiscordSettingsOpen={setDiscordSettingsOpen}
         setIsAddModalOpen={setIsAddModalOpen}
         handleEditPlayer={handleEditPlayer}
         handleDeletePlayer={handleRetirePlayer}
@@ -623,6 +626,12 @@ export default function AdminPage() {
       <RankSettingsModal
         isOpen={rankSettingsOpen}
         onClose={() => setRankSettingsOpen(false)}
+      />
+
+      {/* Discord Webhook Settings Modal */}
+      <DiscordSettingsModal
+        isOpen={discordSettingsOpen}
+        onClose={() => setDiscordSettingsOpen(false)}
       />
 
       {/* Floating Scroll to Top / Bottom Buttons */}

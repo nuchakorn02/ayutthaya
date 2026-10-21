@@ -8,6 +8,7 @@ import Leaderboard from '@/components/Leaderboard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import ExecutiveBoard from '@/components/ExecutiveBoard';
+import { getDisplayPosition } from '@/lib/positionUtils';
 
 export default function HomePage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -176,6 +177,52 @@ export default function HomePage() {
     setSearch('');
   };
 
+  const handleExportCSV = () => {
+    if (filteredPlayers.length === 0) return;
+
+    const headers = ['อันดับ', 'ชื่อผู้เล่น (Roblox)', 'กองสังกัด', 'ยศ/ตำแหน่ง', 'คะแนนสะสม'];
+    
+    const rows = filteredPlayers.map((player, index) => {
+      const rank = player.division === 'คณะผู้บริหาร' ? 'ผู้บริหาร' : String(index + 1);
+      const position = getDisplayPosition(player.position, player.total_score, player.division, thresholds);
+      const score = player.total_score;
+
+      return [
+        rank,
+        player.player_name,
+        player.division,
+        position,
+        score
+      ];
+    });
+
+    const escapeCsvCell = (val: string | number) => {
+      const str = String(val ?? '');
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    };
+
+    const csvContent = [
+      headers.map(escapeCsvCell).join(','),
+      ...rows.map(row => row.map(escapeCsvCell).join(','))
+    ].join('\r\n');
+
+    // Prefix UTF-8 BOM (\uFEFF) so Microsoft Excel displays Thai text correctly without mojibake
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const divisionSuffix = division ? '_' + division.replace(/\s+/g, '_') : '_all';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.href = url;
+    link.setAttribute('download', 'leaderboard' + divisionSuffix + '_' + dateStr + '.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 relative">
       {/* Admin Gateway Link */}
@@ -286,8 +333,21 @@ export default function HomePage() {
 
       {/* Filters Section */}
       <div className="mb-6 space-y-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-        <div className="flex flex-col gap-4 md:flex-row">
-          <SearchBar value={search} onChange={setSearch} />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex-1">
+            <SearchBar value={search} onChange={setSearch} />
+          </div>
+          <button
+            onClick={handleExportCSV}
+            disabled={filteredPlayers.length === 0}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-accent-gold/30 bg-[#161010]/80 text-xs font-bold text-accent-gold hover:bg-accent-gold/15 hover:border-accent-gold/60 transition-all hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-sm shrink-0"
+            title="ส่งออกรายชื่อและคะแนนเป็นไฟล์ CSV (รองรับภาษาไทยใน Excel)"
+          >
+            <svg className="w-4 h-4 text-accent-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            ส่งออก CSV
+          </button>
         </div>
         <DivisionFilter value={division} onChange={handleDivisionChange} counts={divisionCounts} />
       </div>
