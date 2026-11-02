@@ -731,9 +731,20 @@ export async function POST(request: NextRequest) {
 
     // Write all player delta logs for this import session in batch
     if (logsToInsert.length > 0) {
-      const { error: logsInsertError } = await adminClient
+      let logsInsertError: { message: string } | null = null;
+      const { error: firstErr } = await adminClient
         .from('import_logs')
         .insert(logsToInsert);
+      if (firstErr && /is_new/i.test(firstErr.message)) {
+        // Migration not applied yet — retry without is_new column
+        const stripped = logsToInsert.map(({ is_new: _isNew, ...rest }) => rest);
+        const { error: secondErr } = await adminClient
+          .from('import_logs')
+          .insert(stripped);
+        logsInsertError = secondErr;
+      } else {
+        logsInsertError = firstErr;
+      }
       if (logsInsertError) {
         console.error('Failed to insert import logs in batch:', logsInsertError);
         errors.push(`ล้มเหลวในการบันทึกประวัติแต้มรายบุคคลของการอัปโหลดครั้งนี้: ${logsInsertError.message}`);
