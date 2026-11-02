@@ -96,8 +96,8 @@
 
 /* Glassmorphism Ayutthaya Panel */
 .glass-card {
-  background: rgba(22, 11, 11, 0.75);
-  backdrop-filter: blur(25px);
+  background: rgba(22, 11, 11, 0.85);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(212, 175, 55, 0.18);
   border-radius: 14px;
   box-shadow: 
@@ -236,7 +236,7 @@ body {
     url('/ayutthaya_sunset.jpg');
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
+  background-attachment: scroll;
   background-repeat: no-repeat;
   color: var(--color-text-primary);
   font-family: var(--font-sans);

@@ -26,7 +26,7 @@ export default function ParticleBackground() {
 
     let animationFrameId: number;
     let particles: Particle[] = [];
-    const maxParticles = 60; // Keep it lightweight
+    const maxParticles = 30; // Keep it lightweight
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
@@ -76,9 +76,6 @@ export default function ParticleBackground() {
           // Golden glowing amber color
           ctx.fillStyle = `rgba(251, 191, 36, ${opacity})`;
           
-          // Subtle drop shadow/glow for embers
-          ctx.shadowBlur = p.size * 3;
-          ctx.shadowColor = 'rgba(245, 158, 11, 0.6)';
           ctx.fill();
         }
 

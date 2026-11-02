@@ -212,21 +212,24 @@ export async function POST(request: NextRequest) {
           nameColIndex = j;
         } 
         // Map score column (New Score / Total Score)
+        // Priority: header exactly named "แต้มใหม่" always wins over any other candidate column
         else if (
-          valStr === 'แต้มใหม่' || 
-          valStr === 'total_score' || 
-          valStr === 'score' || 
-          valStr === 'แต้มรวม' || 
-          valStr === 'คะแนนรวม' || 
-          valStr === 'แต้ม' ||
-          valStr === 'คะแนน' ||
-          valStr === 'แต้มการทำงาน' ||
-          valStr === 'คะแนนการทำงาน' ||
-          valStr.includes('คะแนนสะสม') ||
-          valStr.includes('แต้มใหม่') ||
-          valStr.includes('แต้มทำงาน') ||
-          (valStr.includes('แต้ม') && !valStr.includes('เก่า') && !valStr.includes('เดิม') && !valStr.includes('ต่าง') && !valStr.includes('ได้')) ||
-          (valStr.includes('คะแนน') && !valStr.includes('เก่า') && !valStr.includes('เดิม') && !valStr.includes('ต่าง') && !valStr.includes('ได้'))
+          valStr === 'แต้มใหม่' ||
+          (scoreColIndex === -1 && (
+            valStr === 'total_score' || 
+            valStr === 'score' || 
+            valStr === 'แต้มรวม' || 
+            valStr === 'คะแนนรวม' || 
+            valStr === 'แต้ม' ||
+            valStr === 'คะแนน' ||
+            valStr === 'แต้มการทำงาน' ||
+            valStr === 'คะแนนการทำงาน' ||
+            valStr.includes('คะแนนสะสม') ||
+            valStr.includes('แต้มใหม่') ||
+            valStr.includes('แต้มทำงาน') ||
+            (valStr.includes('แต้ม') && !valStr.includes('เก่า') && !valStr.includes('เดิม') && !valStr.includes('ต่าง') && !valStr.includes('ได้')) ||
+            (valStr.includes('คะแนน') && !valStr.includes('เก่า') && !valStr.includes('เดิม') && !valStr.includes('ต่าง') && !valStr.includes('ได้'))
+          ))
         ) {
           scoreColIndex = j;
         }
@@ -459,6 +462,7 @@ export async function POST(request: NextRequest) {
       old_score: number;
       new_score: number;
       score_diff: number;
+      is_new: boolean;
     }[] = [];
 
     // 1. Fetch all existing players from the database first for comparison
@@ -632,7 +636,8 @@ export async function POST(request: NextRequest) {
               division,
               old_score: oldScore,
               new_score: totalScore,
-              score_diff: scoreDiff
+              score_diff: scoreDiff,
+              is_new: false
             });
 
             updated++;
@@ -687,7 +692,8 @@ export async function POST(request: NextRequest) {
             division,
             old_score: 0,
             new_score: totalScore,
-            score_diff: totalScore
+            score_diff: totalScore,
+            is_new: true
           });
 
           imported++;
@@ -717,7 +723,8 @@ export async function POST(request: NextRequest) {
           division: p.division, // Save original division here!
           old_score: p.total_score,
           new_score: -999, // Magic flag indicating soft delete
-          score_diff: 0
+          score_diff: 0,
+          is_new: false
         });
       }
     }

@@ -34,7 +34,7 @@ export default function DiscordSettingsModal({ isOpen, onClose }: DiscordSetting
     setFeedback(null);
     setIsEditingUrl(false);
     try {
-      const res = await fetch('/api/settings/discord');
+      const res = await fetch('/api/admin/settings/discord');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'ดึงการตั้งค่าไม่สำเร็จ');
 
@@ -59,7 +59,7 @@ export default function DiscordSettingsModal({ isOpen, onClose }: DiscordSetting
     setFeedback(null);
     try {
       const testPayloadUrl = isEditingUrl && webhookUrl.trim() ? webhookUrl.trim() : undefined;
-      const res = await fetch('/api/settings/discord', {
+      const res = await fetch('/api/admin/settings/discord', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -95,7 +95,7 @@ export default function DiscordSettingsModal({ isOpen, onClose }: DiscordSetting
         payload.webhook_url = webhookUrl.trim();
       }
 
-      const res = await fetch('/api/settings/discord', {
+      const res = await fetch('/api/admin/settings/discord', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

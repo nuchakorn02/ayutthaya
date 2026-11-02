@@ -71,7 +71,7 @@ export async function POST(
           if (restoreError) {
             console.error(`Failed to restore player ${log.player_name} during rollback:`, restoreError);
           }
-        } else if (log.old_score === 0 && log.score_diff > 0 && log.score_diff === log.new_score) {
+        } else if (log.is_new === true || (log.is_new === undefined && log.old_score === 0 && log.score_diff > 0 && log.score_diff === log.new_score)) {
           // ลบเฉพาะคนที่ถูก INSERT ใหม่จริงๆ ใน import นี้
           // (old_score=0, score_diff=new_score หมายความว่าเป็นคนใหม่ ไม่ใช่คนเดิมที่แต้มเป็น 0)
           const { error: deleteError } = await adminClient

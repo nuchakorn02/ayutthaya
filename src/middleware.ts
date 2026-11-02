@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Routes ที่ถูก disable แล้ว (deprecated/dangerous endpoints)
-const DISABLED_ROUTES = ['/api/migrate'];
-
 // ทำงานบน Edge Runtime ไม่สามารถใช้ Node.js crypto ได้ ต้องใช้ Web Crypto API แทน
 async function verifyAdminToken(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get('admin_token')?.value;
@@ -34,15 +31,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
 
-  // 1. Block disabled/deprecated endpoints ทันที
-  if (DISABLED_ROUTES.some((route) => pathname.startsWith(route))) {
-    return NextResponse.json(
-      { error: 'This endpoint has been disabled.' },
-      { status: 410 }
-    );
-  }
-
-  // 2. ป้องกัน /admin pages — redirect ไป login ถ้าไม่ได้ login
+  // 1. ป้องกัน /admin pages — redirect ไป login ถ้าไม่ได้ login
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     const isValid = await verifyAdminToken(request);
     if (!isValid) {

@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getDiscordSettings, clearDiscordSettingsCache, sendDiscordWebhook } from '@/lib/discord';
+import { getDiscordSettings, clearDiscordSettingsCache } from '@/lib/discord';
+
+const DISCORD_WEBHOOK_PREFIXES = [
+  'https://discord.com/api/webhooks/',
+  'https://discordapp.com/api/webhooks/',
+];
+
+function isValidDiscordWebhookUrl(url: string): boolean {
+  return DISCORD_WEBHOOK_PREFIXES.some((prefix) => url.startsWith(prefix));
+}
 
 function maskWebhookUrl(url: string): string {
   if (!url) return '';
@@ -31,7 +40,7 @@ export async function GET() {
       notify_on_delete: settings.notify_on_delete ?? true,
     });
   } catch (error) {
-    console.error('Error in GET /api/settings/discord:', error);
+    console.error('Error in GET /api/admin/settings/discord:', error);
     return NextResponse.json({ error: 'Failed to load Discord settings' }, { status: 500 });
   }
 }
@@ -53,7 +62,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Send test ping directly or via helper
+      // Fix 2: Validate webhook URL against whitelist before fetching (prevent SSRF)
+      if (!isValidDiscordWebhookUrl(targetUrl)) {
+        return NextResponse.json(
+          { error: 'รูปแบบ Webhook URL ไม่ถูกต้อง (ต้องขึ้นต้นด้วย https://discord.com/api/webhooks/...)' },
+          { status: 400 }
+        );
+      }
+
       const res = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -87,9 +103,10 @@ export async function POST(request: NextRequest) {
       });
 
       if (!res.ok) {
-        const errorText = await res.text();
+        // Do NOT forward raw Discord error body to client (may contain sensitive details)
+        console.error(`[Discord Webhook Test] Discord rejected request: ${res.status}`);
         return NextResponse.json(
-          { error: `Discord ปฏิเสธคำขอ (${res.status}): ${errorText || 'โปรดตรวจสอบ Webhook URL'}` },
+          { error: `Discord ปฏิเสธคำขอ (${res.status}): โปรดตรวจสอบความถูกต้องของ Webhook URL` },
           { status: 400 }
         );
       }
@@ -116,7 +133,7 @@ export async function POST(request: NextRequest) {
           // Clear custom override
           cleanUrl = '';
         } else if (!trimmed.includes('******')) {
-          if (!trimmed.startsWith('https://discord.com/api/webhooks/') && !trimmed.startsWith('https://discordapp.com/api/webhooks/')) {
+          if (!isValidDiscordWebhookUrl(trimmed)) {
             return NextResponse.json(
               { error: 'รูปแบบ Webhook URL ไม่ถูกต้อง (ต้องขึ้นต้นด้วย https://discord.com/api/webhooks/...)' },
               { status: 400 }
@@ -158,7 +175,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    console.error('Error in POST /api/settings/discord:', error);
+    console.error('Error in POST /api/admin/settings/discord:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to process request' },
       { status: 500 }

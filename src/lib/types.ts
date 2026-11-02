@@ -47,6 +47,7 @@ export interface ImportLog {
   old_score: number;
   new_score: number;
   score_diff: number;
+  is_new?: boolean;
   created_at: string;
 }
 
