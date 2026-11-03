@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function AdminLoginPage() {
@@ -135,12 +136,12 @@ export default function AdminLoginPage() {
 
         {/* Back link */}
         <div className="mt-6 text-center">
-          <a
+          <Link
             href="/"
             className="text-sm text-text-secondary transition-colors hover:text-accent-cyan"
           >
             ← กลับหน้า Leaderboard
-          </a>
+          </Link>
         </div>
       </div>
     </main>

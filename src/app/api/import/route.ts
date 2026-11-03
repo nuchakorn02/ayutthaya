@@ -3,11 +3,22 @@ import * as XLSX from 'xlsx';
 import { createAdminClient } from '@/lib/supabase/server';
 import { calculateDefaultPosition } from '@/lib/positionUtils';
 import { getRankThresholds } from '@/lib/rankSettings';
-import { sendDiscordWebhook } from '@/lib/discord';
-import type { ApiResponse } from '@/lib/types';
+import { getDiscordSettings, sendDiscordWebhook } from '@/lib/discord';
+import type { ApiResponse, Player } from '@/lib/types';
 import { autoReconcileScores } from '@/lib/import/reconcile';
 import { matchDivisionFuzzy } from '@/lib/import/divisionMatcher';
 import { getImportPersistenceOutcome } from '@/lib/import/persistenceOutcome.mjs';
+
+interface ParsedImportRow {
+  player_name: string;
+  division: string;
+  total_score: number;
+  position: string;
+  row_index: number;
+}
+
+type PlayerUpdatePayload = Pick<Player, 'total_score' | 'position' | 'created_at'> &
+  Partial<Pick<Player, 'latest_change' | 'division'>>;
 
 interface CsvRow {
   player_name: string;
@@ -169,7 +180,7 @@ export async function POST(request: NextRequest) {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     
     // Parse as raw 2D array of rows to bypass title banners at the top of the sheet
-    const rawRows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+    const rawRows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1 });
 
     console.log('--- IMPORT DEBUG ---');
     console.log('File Name:', fileName);
@@ -304,7 +315,7 @@ export async function POST(request: NextRequest) {
     console.log(' - scoreColIndex:', scoreColIndex);
     console.log(' - divisionColIndex:', divisionColIndex);
 
-    const rows: any[] = [];
+    const rows: ParsedImportRow[] = [];
     let currentDivision = '';
     const processedCountPerDivision = new Map<string, number>();
 
@@ -608,7 +619,7 @@ export async function POST(request: NextRequest) {
 
           // Prepare payload — only update latest_change if score actually changed.
           // This preserves latest_change values from manual PATCH operations when score is unchanged.
-          const updatePayload: any = {
+          const updatePayload: PlayerUpdatePayload = {
             total_score: totalScore,
             position: row.position,
             created_at: sequentialCreatedAt
@@ -843,9 +854,11 @@ export async function POST(request: NextRequest) {
           }
         };
 
+        const discordSettings = await getDiscordSettings();
         await sendDiscordWebhook({
-          content: process.env.DISCORD_IMPORT_TEMPLATE || '',
-          embeds: [embed]
+          content: discordSettings.import_template ?? '',
+          embeds: [embed],
+          eventType: 'import',
         });
       } catch (err) {
         console.error('Failed to send Discord webhook:', err);

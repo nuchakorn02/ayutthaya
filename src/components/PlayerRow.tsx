@@ -100,16 +100,8 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
 
   const divColor = divisionColors[player.division] || divisionColors['กองทัพธรณินพิทักษ์'];
 
-  // Reset history state whenever the player changes (prevents stale cache between rows)
-  useEffect(() => {
-    setHistory([]);
-    setHasLoaded(false);
-    setIsExpanded(false);
-  }, [player.id]);
-
   useEffect(() => {
     if (isExpanded && !hasLoaded) {
-      setLoading(true);
       fetch(`/api/players/${player.id}/history`)
         .then((res) => res.json())
         .then((resData) => {
@@ -127,6 +119,13 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
         .finally(() => setLoading(false));
     }
   }, [isExpanded, player.id, hasLoaded]);
+
+  const toggleExpanded = () => {
+    if (!isExpanded && !hasLoaded) {
+      setLoading(true);
+    }
+    setIsExpanded(!isExpanded);
+  };
 
   const drawScoreChart = () => {
     const scores = [player.starting_score ?? player.total_score];
@@ -302,7 +301,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
     <>
       {/* Desktop Row */}
       <tr
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={toggleExpanded}
         className={`player-row hidden border-b border-white/5 md:table-row cursor-pointer select-none transition-all duration-300 ${
           isExpanded ? 'bg-white/[0.02] border-l-4 border-l-accent-gold' : ''
         } ${rankInfo.glowClass}`}
@@ -451,7 +450,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
       <tr className="md:hidden">
         <td colSpan={5}>
           <div
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={toggleExpanded}
             className={`glass-card mx-2 mb-3 p-4 border border-white/5 cursor-pointer select-none transition-all duration-300 animate-slide-up opacity-0 ${
               isExpanded ? 'border-accent-gold/40 bg-white/[0.04]' : ''
             } ${rankInfo.glowClass}`}

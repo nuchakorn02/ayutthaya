@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useEffectEvent } from 'react';
 import * as XLSX from 'xlsx';
 import AdminNav from '@/components/AdminNav';
 import TopIncreaseCard from '@/components/TopIncreaseCard';
@@ -14,7 +14,7 @@ import AddPlayerModal from '@/components/AddPlayerModal';
 import ScoreHistoryModal from '@/components/ScoreHistoryModal';
 import RankSettingsModal from '@/components/RankSettingsModal';
 import DiscordSettingsModal from '@/components/DiscordSettingsModal';
-import type { ScoreHistory } from '@/lib/types';
+import type { ScoreHistory, RankThreshold } from '@/lib/types';
 import { calculateDefaultPosition, getDisplayPosition } from '@/lib/positionUtils';
 import AdminAuditLogs, { AuditLog } from '@/components/admin/AdminAuditLogs';
 import AdminDashboard from '@/components/admin/AdminDashboard';
@@ -27,7 +27,6 @@ import { DivisionBarChart, DivisionDonutChart } from '@/components/admin/AdminCh
 export default function AdminPage() {
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [topIncreases, setTopIncreases] = useState<(TopIncrease | null)[]>(
     Array(8).fill(null)
   );
@@ -75,14 +74,27 @@ export default function AdminPage() {
   // Rank Settings State
   const [rankSettingsOpen, setRankSettingsOpen] = useState(false);
   const [discordSettingsOpen, setDiscordSettingsOpen] = useState(false);
-  const [rankThresholds, setRankThresholds] = useState<any[]>([]);
+  const [rankThresholds, setRankThresholds] = useState<RankThreshold[]>([]);
+
+  const filteredPlayers = useMemo(() => {
+    let result = [...allPlayers];
+    if (division) {
+      result = result.filter((player) => player.division === division);
+      result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    }
+    if (search.trim()) {
+      const query = search.toLowerCase();
+      result = result.filter((player) => player.player_name.toLowerCase().includes(query));
+    }
+    return result;
+  }, [allPlayers, division, search]);
 
   useEffect(() => {
     fetch('/api/settings/ranks')
       .then(res => res.json())
       .then(data => {
-        if (data.thresholds) {
-          setRankThresholds(data.thresholds.sort((a: any, b: any) => b.score - a.score));
+        if (Array.isArray(data.thresholds)) {
+          setRankThresholds([...data.thresholds as RankThreshold[]].sort((a, b) => b.score - a.score));
         }
       })
       .catch(console.error);
@@ -232,7 +244,6 @@ export default function AdminPage() {
   };
 
   const fetchPlayers = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch('/api/players');
       const json = await res.json();
@@ -244,11 +255,9 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setPlayers, setAllPlayers, setLoading]);
 
   const fetchTopIncreases = useCallback(async () => {
-    setTopLoading(true);
-    setTopIncreasesError('');
     try {
       const res = await fetch('/api/admin/top-increases');
       const json = await res.json();
@@ -260,6 +269,7 @@ export default function AdminPage() {
       }
 
       const items: TopIncrease[] = json.data;
+      setTopIncreasesError('');
       const divisionNames = [
         'กองทัพมหาเสือพิทักษ์',
         'กองทัพธรณินพิทักษ์',
@@ -284,10 +294,9 @@ export default function AdminPage() {
     } finally {
       setTopLoading(false);
     }
-  }, []);
+  }, [setTopIncreases, setTopIncreasesError, setTopLoading]);
 
   const fetchLogs = useCallback(async () => {
-    setLogsLoading(true);
     try {
       const res = await fetch('/api/admin/logs');
       const json = await res.json();
@@ -297,9 +306,9 @@ export default function AdminPage() {
     } finally {
       setLogsLoading(false);
     }
-  }, []);
+  }, [setLogs, setLogsLoading]);
 
-  const fetchWeeklyPoints = useCallback(async () => {
+  const fetchWeeklyPoints = async () => {
     try {
       const res = await fetch('/api/admin/logs?since=7d');
       const json = await res.json();
@@ -309,10 +318,9 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to fetch weekly points:', err);
     }
-  }, []);
+  };
 
   const fetchImportSessions = useCallback(async () => {
-    setSessionsLoading(true);
     try {
       const res = await fetch('/api/admin/imports');
       const json = await res.json();
@@ -326,10 +334,9 @@ export default function AdminPage() {
     } finally {
       setSessionsLoading(false);
     }
-  }, []);
+  }, [setImportSessions, setSelectedSession, setSessionsLoading]);
 
   const fetchSessionLogs = useCallback(async (sessionId: string) => {
-    setSessionLogsLoading(true);
     try {
       const res = await fetch(`/api/admin/imports/${sessionId}`);
       const json = await res.json();
@@ -339,28 +346,46 @@ export default function AdminPage() {
     } finally {
       setSessionLogsLoading(false);
     }
-  }, []);
+  }, [setSessionLogs, setSessionLogsLoading]);
+
+  const loadSessionLogs = useEffectEvent((sessionId: string) => {
+    void fetchSessionLogs(sessionId);
+  });
+
+  const loadAdminData = useEffectEvent(() => {
+    void fetchPlayers();
+    void fetchTopIncreases();
+    void fetchLogs();
+    void fetchWeeklyPoints();
+    void fetchImportSessions();
+  });
+
+  const refreshAdminData = useEffectEvent(() => {
+    void fetchPlayers();
+    void fetchTopIncreases();
+    void fetchLogs();
+    void fetchWeeklyPoints();
+  });
 
   useEffect(() => {
-    fetchPlayers();
-    fetchTopIncreases();
-    fetchLogs();
-    fetchWeeklyPoints();
-    fetchImportSessions();
-  }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchWeeklyPoints, fetchImportSessions]);
+    // These callbacks update React state only after their network requests settle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadAdminData();
+  }, []);
 
   // Auto-refresh every 5 minutes to keep data up-to-date
   useEffect(() => {
     const autoRefresh = setInterval(() => {
-      fetchPlayers();
-      fetchTopIncreases();
-      fetchLogs();
-      fetchWeeklyPoints();
+      refreshAdminData();
     }, 5 * 60 * 1000);
     return () => clearInterval(autoRefresh);
-  }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchWeeklyPoints]);
+  }, []);
 
   const handleRefreshAll = () => {
+    setLoading(true);
+    setTopLoading(true);
+    setLogsLoading(true);
+    setSessionsLoading(true);
     fetchPlayers();
     fetchTopIncreases();
     fetchLogs();
@@ -371,24 +396,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (selectedSession) {
-      fetchSessionLogs(selectedSession.id);
+      // Session logs are updated only after the history request completes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadSessionLogs(selectedSession.id);
     }
-  }, [selectedSession, fetchSessionLogs]);
-
-  // Local filtering logic for division and search
-  useEffect(() => {
-    let result = [...allPlayers];
-    if (division) {
-      result = result.filter((p) => p.division === division);
-      // Sort by created_at ascending to strictly respect Excel sheet ordering
-      result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-    }
-    if (search.trim()) {
-      const query = search.toLowerCase();
-      result = result.filter((p) => p.player_name.toLowerCase().includes(query));
-    }
-    setFilteredPlayers(result);
-  }, [search, division, allPlayers]);
+  }, [selectedSession]);
 
   const handleDivisionChange = (value: string) => {
     setDivision(value);
@@ -608,6 +620,13 @@ export default function AdminPage() {
 
       {/* Score Updater Modal */}
       <ScoreUpdater
+        key={editingPlayer ? JSON.stringify([
+          editingPlayer.id,
+          editingPlayer.player_name,
+          editingPlayer.division,
+          editingPlayer.total_score,
+          editingPlayer.position,
+        ]) : 'closed'}
         player={editingPlayer}
         isOpen={isModalOpen}
         onClose={() => {
@@ -618,11 +637,13 @@ export default function AdminPage() {
       />
 
       {/* Quick Add Player Modal */}
-      <AddPlayerModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAdd={handleUpdateComplete}
-      />
+      {isAddModalOpen && (
+        <AddPlayerModal
+          isOpen
+          onClose={() => setIsAddModalOpen(false)}
+          onAdd={handleUpdateComplete}
+        />
+      )}
 
       <ScoreHistoryModal
         isOpen={historyModalOpen}
@@ -634,16 +655,14 @@ export default function AdminPage() {
       />
 
       {/* Rank Settings Modal */}
-      <RankSettingsModal
-        isOpen={rankSettingsOpen}
-        onClose={() => setRankSettingsOpen(false)}
-      />
+      {rankSettingsOpen && (
+        <RankSettingsModal isOpen onClose={() => setRankSettingsOpen(false)} />
+      )}
 
       {/* Discord Webhook Settings Modal */}
-      <DiscordSettingsModal
-        isOpen={discordSettingsOpen}
-        onClose={() => setDiscordSettingsOpen(false)}
-      />
+      {discordSettingsOpen && (
+        <DiscordSettingsModal isOpen onClose={() => setDiscordSettingsOpen(false)} />
+      )}
 
       {/* Floating Scroll to Top / Bottom Buttons */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2.5 animate-slide-up">

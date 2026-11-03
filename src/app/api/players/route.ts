@@ -3,6 +3,7 @@ import { createAdminClient, createPublicServerClient } from '@/lib/supabase/serv
 import type { Player, ApiResponse } from '@/lib/types';
 import { DIVISIONS } from '@/lib/constants';
 import { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } from '@/lib/discord';
+import type { DiscordEmbed } from '@/lib/discord';
 
 export async function GET(request: NextRequest) {
   try {
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!division || typeof division !== 'string' || !DIVISIONS.includes(division as any)) {
+    if (!division || typeof division !== 'string' || !DIVISIONS.some((validDivision) => validDivision === division)) {
       return NextResponse.json(
         { error: 'Invalid division. Must be one of the valid divisions.' } satisfies ApiResponse<never>,
         { status: 400 }
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
           const avatarUrl = await getRobloxAvatarUrl(newPlayer.player_name);
           const embedColor = DIVISION_EMBED_COLORS[newPlayer.division] || 1096065; // Default Emerald #10B981
 
-          const embed: any = {
+          const embed: DiscordEmbed = {
             title: '💂 ลงทะเบียนกำลังพลรายใหม่สำเร็จ!',
             color: embedColor,
             fields: [

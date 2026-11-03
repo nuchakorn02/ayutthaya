@@ -25,7 +25,7 @@ export default function ParticleBackground() {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let particles: Particle[] = [];
+    const particles: Particle[] = [];
     const maxParticles = 30; // Keep it lightweight
 
     const resizeCanvas = () => {

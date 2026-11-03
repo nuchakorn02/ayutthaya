@@ -11,10 +11,6 @@ export default function SearchBar({ value, onChange }: SearchBarProps) {
   const [localValue, setLocalValue] = useState(value);
 
   useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
-
-  useEffect(() => {
     const timer = setTimeout(() => {
       if (localValue !== value) {
         onChange(localValue);

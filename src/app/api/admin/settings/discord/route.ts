@@ -38,6 +38,7 @@ export async function GET() {
       notify_on_import: settings.notify_on_import ?? true,
       notify_on_edit: settings.notify_on_edit ?? true,
       notify_on_delete: settings.notify_on_delete ?? true,
+      import_template: settings.import_template ?? '',
     });
   } catch (error) {
     console.error('Error in GET /api/admin/settings/discord:', error);
@@ -121,7 +122,17 @@ export async function POST(request: NextRequest) {
         notify_on_import,
         notify_on_edit,
         notify_on_delete,
+        import_template,
       } = body;
+
+      if (import_template !== undefined && (
+        typeof import_template !== 'string' || import_template.length > 2000
+      )) {
+        return NextResponse.json(
+          { error: 'Import notification template must be a string of 2000 characters or fewer' },
+          { status: 400 }
+        );
+      }
 
       const currentSettings = await getDiscordSettings();
       let cleanUrl = currentSettings.webhook_url || '';
@@ -149,6 +160,7 @@ export async function POST(request: NextRequest) {
         notify_on_import: notify_on_import ?? true,
         notify_on_edit: notify_on_edit ?? true,
         notify_on_delete: notify_on_delete ?? true,
+        import_template: import_template ?? currentSettings.import_template ?? '',
       };
 
       const adminClient = createAdminClient();

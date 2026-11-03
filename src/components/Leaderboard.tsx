@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Player, RankThreshold } from '@/lib/types';
 import PlayerRow from './PlayerRow';
 import Podium from './Podium';
@@ -17,12 +17,15 @@ interface LeaderboardProps {
 const PAGE_SIZE = 50;
 
 export default function Leaderboard({ players, isSortedByScore, rankChanges, searchQuery, onClearSearch, thresholds }: LeaderboardProps) {
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-
-  // Reset pagination whenever player list or sort order changes
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [players.length, isSortedByScore, searchQuery]);
+  const resetKey = `${players.length}:${isSortedByScore}:${searchQuery ?? ''}`;
+  const [visibleCountState, setVisibleCountState] = useState({
+    resetKey,
+    count: PAGE_SIZE,
+  });
+  if (visibleCountState.resetKey !== resetKey) {
+    setVisibleCountState({ resetKey, count: PAGE_SIZE });
+  }
+  const visibleCount = visibleCountState.count;
 
   if (players.length === 0) {
     return (
@@ -139,14 +142,20 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, players.length))}
+              onClick={() => setVisibleCountState((previous) => ({
+                ...previous,
+                count: Math.min(previous.count + PAGE_SIZE, players.length),
+              }))}
               className="glass-card flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-accent-gold border border-accent-gold/30 rounded-xl hover:border-accent-gold hover:bg-accent-gold/10 transition-all hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.08)]"
             >
               <span>➕</span>
               <span>โหลดเพิ่ม 50 นาย (เหลืออีก {players.length - visibleCount})</span>
             </button>
             <button
-              onClick={() => setVisibleCount(players.length)}
+              onClick={() => setVisibleCountState((previous) => ({
+                ...previous,
+                count: players.length,
+              }))}
               className="glass-card px-3 py-2 text-xs font-semibold text-text-secondary border border-white/10 rounded-xl hover:text-text-primary hover:border-white/20 transition-all cursor-pointer"
             >
               แสดงทั้งหมด

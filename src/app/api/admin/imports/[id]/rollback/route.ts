@@ -51,7 +51,8 @@ export async function POST(
         };
 
         await sendDiscordWebhook({
-          embeds: [embed]
+          embeds: [embed],
+          eventType: 'import',
         });
       } catch (err) {
         console.error('Failed to send Rollback Discord Webhook:', err);

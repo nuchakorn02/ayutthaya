@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// ทำงานบน Edge Runtime ไม่สามารถใช้ Node.js crypto ได้ ต้องใช้ Web Crypto API แทน
+// Use Web Crypto so the token check does not depend on Node.js crypto APIs.
 async function verifyAdminToken(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get('admin_token')?.value;
   if (!token) return false;
@@ -27,7 +27,7 @@ async function verifyAdminToken(request: NextRequest): Promise<boolean> {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
 

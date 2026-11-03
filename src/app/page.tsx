@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useEffectEvent } from 'react';
 import { Player, RankThreshold } from '@/lib/types';
 import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
@@ -9,16 +9,15 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import ExecutiveBoard from '@/components/ExecutiveBoard';
 import { getDisplayPosition } from '@/lib/positionUtils';
+import { escapeCsvCell } from '@/lib/csvExport.mjs';
 
 export default function HomePage() {
   const [players, setPlayers] = useState<Player[]>([]);
-  const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [division, setDivision] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [rankChanges, setRankChanges] = useState<Record<string, number>>({});
   const [divisionSortBy, setDivisionSortBy] = useState<'score' | 'created'>('score');
   const [thresholds, setThresholds] = useState<RankThreshold[]>([]);
 
@@ -65,14 +64,13 @@ export default function HomePage() {
   };
 
   const fetchPlayers = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
     try {
       const url = '/api/players';
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
+      setFetchError(null);
       const playerList = json.data || [];
       setPlayers(playerList);
       
@@ -91,10 +89,16 @@ export default function HomePage() {
     }
   }, []);
 
+  const loadPlayers = useEffectEvent(() => {
+    void fetchPlayers();
+  });
+
   // Fetch all players on mount
   useEffect(() => {
-    fetchPlayers();
-  }, [fetchPlayers]);
+    // The fetch callback updates state only after the network request settles.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPlayers();
+  }, []);
 
   // Auto-refresh every 5 minutes so viewers see latest scores without manual reload
   useEffect(() => {
@@ -104,8 +108,7 @@ export default function HomePage() {
     return () => clearInterval(autoRefresh);
   }, [fetchPlayers]);
 
-  // Local filtering and sorting logic for division and search
-  useEffect(() => {
+  const filteredPlayers = useMemo(() => {
     let result = [...players];
     
     // First, filter by division if selected
@@ -127,7 +130,7 @@ export default function HomePage() {
       result = result.filter((p) => p.player_name.toLowerCase().includes(query));
     }
 
-    setFilteredPlayers(result);
+    return result;
   }, [players, division, search, divisionSortBy]);
 
   // useMemo: คำนวณใหม่เฉพาะเมื่อ players เปลี่ยน ไม่ recalculate ทุก render
@@ -140,8 +143,8 @@ export default function HomePage() {
   // คำนวณการเปลี่ยนแปลงลำดับ (rank positions moved ▲/▼)
   // แต่โชว์เฉพาะคนที่แต้มตัวเองเปลี่ยนจริงๆ เท่านั้น
   // เพื่อป้องกันกรณีที่ผู้เล่นใหม่เข้าระบบ แล้วทุกคนดูเหมือนขึ้นอันดับทั้งที่ไม่ได้ขึ้นจริง
-  useEffect(() => {
-    if (players.length === 0) return;
+  const rankChanges = useMemo(() => {
+    if (players.length === 0) return {};
 
     const normalPlayers = players.filter((p) => p.division !== 'คณะผู้บริหาร');
 
@@ -169,7 +172,7 @@ export default function HomePage() {
       if (rankDiff !== 0) changes[p.id] = rankDiff;
     });
 
-    setRankChanges(changes);
+    return changes;
   }, [players]);
 
   const handleDivisionChange = (value: string) => {
@@ -195,14 +198,6 @@ export default function HomePage() {
         score
       ];
     });
-
-    const escapeCsvCell = (val: string | number) => {
-      const str = String(val ?? '');
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return '"' + str.replace(/"/g, '""') + '"';
-      }
-      return str;
-    };
 
     const csvContent = [
       headers.map(escapeCsvCell).join(','),
@@ -335,7 +330,7 @@ export default function HomePage() {
       <div className="mb-6 space-y-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1">
-            <SearchBar value={search} onChange={setSearch} />
+            <SearchBar key={division} value={search} onChange={setSearch} />
           </div>
           <button
             onClick={handleExportCSV}

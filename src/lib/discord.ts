@@ -1,6 +1,11 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import {
+  resolveDiscordImportTemplate,
+  shouldSendDiscordNotification,
+} from '@/lib/discordNotifications.mjs';
+import type { DiscordEventType } from '@/lib/discordNotifications.mjs';
 
-interface DiscordEmbed {
+export interface DiscordEmbed {
   title?: string;
   description?: string;
   url?: string;
@@ -26,6 +31,7 @@ export const DIVISION_EMBED_COLORS: Record<string, number> = {
 export interface DiscordSettingsConfig {
   enabled: boolean;
   webhook_url?: string;
+  import_template?: string;
   notify_on_import?: boolean;
   notify_on_edit?: boolean;
   notify_on_delete?: boolean;
@@ -69,6 +75,10 @@ export async function getDiscordSettings(): Promise<DiscordSettingsConfig> {
     notify_on_import: dbConfig?.notify_on_import ?? true,
     notify_on_edit: dbConfig?.notify_on_edit ?? true,
     notify_on_delete: dbConfig?.notify_on_delete ?? true,
+    import_template: resolveDiscordImportTemplate(
+      dbConfig?.import_template,
+      process.env.DISCORD_IMPORT_TEMPLATE
+    ),
   };
 
   cachedSettings = {
@@ -114,18 +124,14 @@ export async function sendDiscordWebhook(payload: {
   embeds?: DiscordEmbed[];
   username?: string;
   avatar_url?: string;
-  eventType?: 'import' | 'edit' | 'delete' | 'test';
+  eventType?: DiscordEventType;
 }): Promise<boolean> {
   const settings = await getDiscordSettings();
 
-  if (!settings.enabled) {
+  if (!shouldSendDiscordNotification(payload.eventType, settings)) {
     console.log('[Discord Webhook] Webhook is disabled in settings. Skipping.');
     return false;
   }
-
-  if (payload.eventType === 'import' && settings.notify_on_import === false) return false;
-  if (payload.eventType === 'edit' && settings.notify_on_edit === false) return false;
-  if (payload.eventType === 'delete' && settings.notify_on_delete === false) return false;
 
   const webhookUrl = settings.webhook_url;
   if (!webhookUrl) {

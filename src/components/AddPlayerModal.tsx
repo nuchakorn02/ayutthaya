@@ -15,7 +15,7 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
   const [playerName, setPlayerName] = useState('');
   const [division, setDivision] = useState<string>(DIVISIONS[0]);
   const [score, setScore] = useState('0');
-  const [position, setPosition] = useState('');
+  const [positionOverride, setPositionOverride] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [thresholds, setThresholds] = useState<RankThreshold[]>([]);
@@ -31,28 +31,12 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
       .catch((err) => console.error('Failed to load rank thresholds in AddPlayerModal:', err));
   }, []);
 
-  useEffect(() => {
-    if (isOpen) {
-      setPlayerName('');
-      setDivision(DIVISIONS[0]);
-      setScore('0');
-      setPosition('');
-      setFeedback(null);
-    }
-  }, [isOpen]);
-
   const handleAutoCalculatePosition = () => {
-    const numScore = Number(score) || 0;
-    setPosition(calculateDefaultPosition(numScore, division, thresholds));
+    setPositionOverride(null);
   };
 
-  // Automatically recalculate position if user switches division
-  useEffect(() => {
-    if (division && score) {
-      const numScore = Number(score) || 0;
-      setPosition(calculateDefaultPosition(numScore, division, thresholds));
-    }
-  }, [division, score, thresholds]);
+  const position =
+    positionOverride ?? calculateDefaultPosition(Number(score) || 0, division, thresholds);
 
   if (!isOpen) return null;
 
@@ -169,7 +153,10 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
             </label>
             <select
               value={division}
-              onChange={(e) => setDivision(e.target.value)}
+              onChange={(e) => {
+                setDivision(e.target.value);
+                setPositionOverride(null);
+              }}
               className="glass-card w-full px-4 py-2.5 text-sm text-text-primary
                 outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
                 focus:border-accent-gold/40 focus:shadow-[0_0_15px_rgba(212,175,55,0.08)]"
@@ -190,7 +177,10 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
             <input
               type="number"
               value={score}
-              onChange={(e) => setScore(e.target.value)}
+              onChange={(e) => {
+                setScore(e.target.value);
+                setPositionOverride(null);
+              }}
               min="0"
               className="glass-card w-full px-4 py-2.5 font-mono text-base text-text-primary
                 outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10
@@ -216,7 +206,7 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
             <input
               type="text"
               value={position}
-              onChange={(e) => setPosition(e.target.value)}
+              onChange={(e) => setPositionOverride(e.target.value)}
               placeholder="ระบบจะคำนวณให้อัตโนมัติ หรือพิมพ์แก้ไขได้"
               className="glass-card w-full px-4 py-2.5 text-sm text-text-primary
                 outline-none transition-all duration-300 bg-bg-secondary/50 border-white/10

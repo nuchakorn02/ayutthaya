@@ -15,31 +15,30 @@ export default function RankSettingsModal({ isOpen, onClose }: RankSettingsModal
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      loadSettings();
-    }
+    if (!isOpen) return;
+
+    const loadSettings = async () => {
+      try {
+        const res = await fetch('/api/settings/ranks');
+        const data = await res.json();
+        if (data.thresholds) {
+          setThresholds([...data.thresholds].sort((a: RankThreshold, b: RankThreshold) => b.score - a.score));
+        }
+      } catch (err) {
+        console.error('Failed to load settings', err);
+        setFeedback({ type: 'error', message: 'ดึงข้อมูลการตั้งค่าไม่สำเร็จ' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadSettings();
   }, [isOpen]);
 
-  const loadSettings = async () => {
-    setIsLoading(true);
-    setFeedback(null);
-    try {
-      const res = await fetch('/api/settings/ranks');
-      const data = await res.json();
-      if (data.thresholds) {
-        setThresholds(data.thresholds.sort((a: RankThreshold, b: RankThreshold) => b.score - a.score));
-      }
-    } catch (err) {
-      console.error('Failed to load settings', err);
-      setFeedback({ type: 'error', message: 'ดึงข้อมูลการตั้งค่าไม่สำเร็จ' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleScoreChange = (index: number, newScore: number) => {
-    const updated = [...thresholds];
-    updated[index].score = newScore;
+    const updated = thresholds.map((threshold, currentIndex) =>
+      currentIndex === index ? { ...threshold, score: newScore } : threshold
+    );
     setThresholds(updated);
   };
 
@@ -138,7 +137,7 @@ export default function RankSettingsModal({ isOpen, onClose }: RankSettingsModal
               
               <p className="text-[10px] text-text-secondary mt-4 flex gap-1.5 items-start">
                 <span className="text-accent-gold">💡</span>
-                หมายเหตุ: การเปลี่ยนตัวเลขเกณฑ์คะแนนจะส่งผลกับการกำหนดค่าอัตโนมัติตอนนำเข้าไฟล์ Excel และปุ่ม "คำนวณอัตโนมัติ" ในหน้าแก้ไขรายบุคคล (ไม่กระทบกับคนที่คำนวณไปแล้ว)
+                หมายเหตุ: การเปลี่ยนตัวเลขเกณฑ์คะแนนจะส่งผลกับการกำหนดค่าอัตโนมัติตอนนำเข้าไฟล์ Excel และปุ่ม &quot;คำนวณอัตโนมัติ&quot; ในหน้าแก้ไขรายบุคคล (ไม่กระทบกับคนที่คำนวณไปแล้ว)
               </p>
 
               {feedback && (

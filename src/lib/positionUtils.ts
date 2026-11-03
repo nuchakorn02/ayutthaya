@@ -4,6 +4,8 @@
  */
 
 import type { RankThreshold } from '@/lib/types';
+import { DEFAULT_RANK_THRESHOLDS } from '@/lib/rankDefaults.mjs';
+import type { DefaultRankThreshold } from '@/lib/rankDefaults.mjs';
 
 /**
  * Calculate the default position/rank title for a player based on
@@ -30,15 +32,10 @@ export function calculateDefaultPosition(
     return isPolice ? last.policeTitle : last.guardTitle;
   }
 
-  // Fallback hardcoded thresholds
-  if (score >= 600) return isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen';
-  if (score >= 315) return isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen';
-  if (score >= 210) return isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen';
-  if (score >= 110) return isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen';
-  if (score >= 60) return isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen';
-  if (score >= 45) return isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen';
-  if (score >= 20) return isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen';
-  return isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen';
+  const fallback = [...DEFAULT_RANK_THRESHOLDS]
+    .reverse()
+    .find((threshold) => score >= threshold.score) ?? DEFAULT_RANK_THRESHOLDS[0];
+  return isPolice ? fallback.policeTitle : fallback.guardTitle;
 }
 
 /**
@@ -103,18 +100,11 @@ export function getRankProgression(
   const isPolice = division === 'กองพระตำรวจหลวง';
 
   // Sort ascending by score to find the next milestone
-  const sortedThresholds: RankThreshold[] =
-    thresholds.length > 0
-      ? [...thresholds].sort((a, b) => a.score - b.score)
-      : [
-          { score: 20, guardTitle: 'Guardsmen (พลทหารยาม)', policeTitle: 'Active Trooper (พลประจำการตำรวจหลวง)' },
-          { score: 45, guardTitle: 'Royal Elite Guardsmen (พลทหารราชวัลลภพิเศษ)', policeTitle: 'Special Trooper (พลตำรวจหลวงพิเศษ)' },
-          { score: 60, guardTitle: 'Senior Guardsmen (พลทหารยามอาวุโส)', policeTitle: 'Senior Trooper (พลตำรวจหลวงอาวุโส)' },
-          { score: 110, guardTitle: 'Squad Head Guardsmen (นายหมู่เวร)', policeTitle: 'Squad Leader (นายหมู่ตำรวจหลวง)' },
-          { score: 210, guardTitle: 'Platoon Head Guardsmen (นายหมวดเวร)', policeTitle: 'Platoon Officer (นายหมวดตำรวจหลวง)' },
-          { score: 315, guardTitle: 'Company Head Guardsmen (นายกองเวร)', policeTitle: 'Battalion Commander (นายกองตำรวจหลวง)' },
-          { score: 600, guardTitle: 'Battalion Commander (นายพันเวร)', policeTitle: 'Colonel (พันตำรวจหลวง)' },
-        ];
+  const usesDefaultThresholds = thresholds.length === 0;
+  const sortedThresholds: (RankThreshold & Partial<Pick<DefaultRankThreshold, 'guardProgressTitle' | 'policeProgressTitle'>>)[]
+    = usesDefaultThresholds
+    ? [...DEFAULT_RANK_THRESHOLDS].sort((a, b) => a.score - b.score)
+    : [...thresholds].sort((a, b) => a.score - b.score);
 
   // Filter out any threshold that is score 0 (base rank) when looking for the next milestone
   const milestones = sortedThresholds.filter((m) => m.score > 0);
@@ -137,7 +127,11 @@ export function getRankProgression(
   const currentDiff = Math.max(0, score - prevScore);
   const percentage = Math.max(0, Math.min(100, (currentDiff / totalDiff) * 100));
   const pointsNeeded = Math.max(0, nextMilestone.score - score);
-  const nextRankName = isPolice ? nextMilestone.policeTitle : nextMilestone.guardTitle;
+  const nextRankName = usesDefaultThresholds
+    ? (isPolice
+      ? nextMilestone.policeProgressTitle ?? nextMilestone.policeTitle
+      : nextMilestone.guardProgressTitle ?? nextMilestone.guardTitle)
+    : (isPolice ? nextMilestone.policeTitle : nextMilestone.guardTitle);
 
   return {
     isSpecialDivision: false,

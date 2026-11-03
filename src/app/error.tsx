@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import Link from 'next/link';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -62,12 +63,12 @@ export default function ErrorPage({ error, reset }: ErrorProps) {
           </svg>
           ลองใหม่อีกครั้ง
         </button>
-        <a
+        <Link
           href="/"
           className="glass-card px-5 py-2.5 text-sm font-semibold text-text-secondary border border-white/10 rounded-xl hover:text-text-primary hover:border-white/20 transition-all cursor-pointer"
         >
           กลับหน้าหลัก
-        </a>
+        </Link>
       </div>
     </div>
   );

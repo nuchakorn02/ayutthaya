@@ -11,9 +11,11 @@ interface ScoreUpdaterProps {
 }
 
 export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: ScoreUpdaterProps) {
-  const [newScore, setNewScore] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newPosition, setNewPosition] = useState('');
+  const [newScore, setNewScore] = useState(() =>
+    player ? String(player.total_score === -999 ? 0 : player.total_score) : ''
+  );
+  const [newName, setNewName] = useState(() => player?.player_name ?? '');
+  const [newPosition, setNewPosition] = useState(() => player?.position ?? '');
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -24,24 +26,12 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
     fetch('/api/settings/ranks')
       .then(res => res.json())
       .then(data => {
-        if (data.thresholds) {
-          setThresholds(data.thresholds.sort((a: any, b: any) => b.score - a.score));
+        if (Array.isArray(data.thresholds)) {
+          setThresholds([...data.thresholds as RankThreshold[]].sort((a, b) => b.score - a.score));
         }
       })
       .catch(console.error);
   }, []);
-
-  useEffect(() => {
-    if (player) {
-      // Bug fix: ไม่แสดง -999 ในช่อง input ถ้าทหารพ้นสภาพไปแล้ว
-      const displayScore = player.total_score === -999 ? 0 : player.total_score;
-      setNewScore(String(displayScore));
-      setNewName(player.player_name);
-      setNewPosition(player.position || '');
-      setReason('');
-      setFeedback(null);
-    }
-  }, [player]);
 
   if (!isOpen || !player) return null;
 

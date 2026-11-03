@@ -206,7 +206,8 @@ export async function PATCH(
           }
 
           await sendDiscordWebhook({
-            embeds: [embed]
+            embeds: [embed],
+            eventType: 'edit',
           });
         } catch (webhookErr) {
           console.error('[Discord Webhook Exception] Failed in background sender:', webhookErr);

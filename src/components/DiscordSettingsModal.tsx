@@ -17,6 +17,7 @@ export default function DiscordSettingsModal({ isOpen, onClose }: DiscordSetting
   const [notifyOnImport, setNotifyOnImport] = useState(true);
   const [notifyOnEdit, setNotifyOnEdit] = useState(true);
   const [notifyOnDelete, setNotifyOnDelete] = useState(true);
+  const [importTemplate, setImportTemplate] = useState('');
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -24,35 +25,33 @@ export default function DiscordSettingsModal({ isOpen, onClose }: DiscordSetting
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      loadSettings();
-    }
+    if (!isOpen) return;
+
+    const loadSettings = async () => {
+      try {
+        const res = await fetch('/api/admin/settings/discord');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'ดึงการตั้งค่าไม่สำเร็จ');
+
+        setEnabled(data.enabled ?? true);
+        setMaskedUrl(data.masked_url || '');
+        setWebhookUrl('');
+        setHasEnvUrl(data.has_env_url || false);
+        setHasCustomUrl(data.has_custom_url || false);
+        setNotifyOnImport(data.notify_on_import ?? true);
+        setNotifyOnEdit(data.notify_on_edit ?? true);
+        setNotifyOnDelete(data.notify_on_delete ?? true);
+        setImportTemplate(data.import_template ?? '');
+      } catch (err) {
+        console.error('Failed to load discord settings:', err);
+        setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'ดึงข้อมูลไม่สำเร็จ' });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadSettings();
   }, [isOpen]);
-
-  const loadSettings = async () => {
-    setIsLoading(true);
-    setFeedback(null);
-    setIsEditingUrl(false);
-    try {
-      const res = await fetch('/api/admin/settings/discord');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'ดึงการตั้งค่าไม่สำเร็จ');
-
-      setEnabled(data.enabled ?? true);
-      setMaskedUrl(data.masked_url || '');
-      setWebhookUrl('');
-      setHasEnvUrl(data.has_env_url || false);
-      setHasCustomUrl(data.has_custom_url || false);
-      setNotifyOnImport(data.notify_on_import ?? true);
-      setNotifyOnEdit(data.notify_on_edit ?? true);
-      setNotifyOnDelete(data.notify_on_delete ?? true);
-    } catch (err) {
-      console.error('Failed to load discord settings:', err);
-      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'ดึงข้อมูลไม่สำเร็จ' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleTest = async () => {
     setIsTesting(true);
@@ -83,12 +82,21 @@ export default function DiscordSettingsModal({ isOpen, onClose }: DiscordSetting
     setIsSaving(true);
     setFeedback(null);
     try {
-      const payload: Record<string, any> = {
+      const payload: {
+        action: 'save';
+        enabled: boolean;
+        notify_on_import: boolean;
+        notify_on_edit: boolean;
+        notify_on_delete: boolean;
+        import_template: string;
+        webhook_url?: string;
+      } = {
         action: 'save',
         enabled,
         notify_on_import: notifyOnImport,
         notify_on_edit: notifyOnEdit,
         notify_on_delete: notifyOnDelete,
+        import_template: importTemplate,
       };
 
       if (isEditingUrl) {
@@ -233,6 +241,22 @@ export default function DiscordSettingsModal({ isOpen, onClose }: DiscordSetting
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="p-4 rounded-xl border border-white/10 bg-white/[0.02] space-y-2">
+                <label htmlFor="discord-import-template" className="text-xs font-bold text-text-secondary uppercase tracking-wider">
+                  ข้อความประกอบการแจ้งเตือนนำเข้า
+                </label>
+                <textarea
+                  id="discord-import-template"
+                  value={importTemplate}
+                  onChange={(event) => setImportTemplate(event.target.value)}
+                  maxLength={2000}
+                  rows={3}
+                  placeholder="ข้อความที่ส่งก่อนสรุปผลการนำเข้า (เว้นว่างได้)"
+                  className="w-full resize-y rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-xs text-white placeholder-text-secondary/50 focus:border-accent-gold focus:outline-none"
+                />
+                <p className="text-[10px] text-text-secondary text-right">{importTemplate.length}/2000</p>
               </div>
 
               {/* Notification Events Toggles */}

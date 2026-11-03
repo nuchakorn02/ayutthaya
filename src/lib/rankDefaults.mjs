@@ -1,0 +1,56 @@
+export const DEFAULT_RANK_THRESHOLDS = [
+  {
+    score: 0,
+    guardTitle: 'พลอาสาสมัครทหารยาม | Junior Guardsmen',
+    policeTitle: 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)',
+  },
+  {
+    score: 20,
+    guardTitle: 'พลทหารยาม | Guardsmen',
+    policeTitle: 'พลประจำการตำรวจหลวง | Active Royal Police Trooper',
+    guardProgressTitle: 'Guardsmen (พลทหารยาม)',
+    policeProgressTitle: 'Active Trooper (พลประจำการตำรวจหลวง)',
+  },
+  {
+    score: 45,
+    guardTitle: 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen',
+    policeTitle: 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper',
+    guardProgressTitle: 'Royal Elite Guardsmen (พลทหารราชวัลลภพิเศษ)',
+    policeProgressTitle: 'Special Trooper (พลตำรวจหลวงพิเศษ)',
+  },
+  {
+    score: 60,
+    guardTitle: 'พลทหารยามอาวุโส | Senior Guardsmen',
+    policeTitle: 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper',
+    guardProgressTitle: 'Senior Guardsmen (พลทหารยามอาวุโส)',
+    policeProgressTitle: 'Senior Trooper (พลตำรวจหลวงอาวุโส)',
+  },
+  {
+    score: 110,
+    guardTitle: 'นายหมู่เวร | Squad Head Guardsmen',
+    policeTitle: 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader',
+    guardProgressTitle: 'Squad Head Guardsmen (นายหมู่เวร)',
+    policeProgressTitle: 'Squad Leader (นายหมู่ตำรวจหลวง)',
+  },
+  {
+    score: 210,
+    guardTitle: 'นายหมวดเวร | Platoon Head Guardsmen',
+    policeTitle: 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer',
+    guardProgressTitle: 'Platoon Head Guardsmen (นายหมวดเวร)',
+    policeProgressTitle: 'Platoon Officer (นายหมวดตำรวจหลวง)',
+  },
+  {
+    score: 315,
+    guardTitle: 'นายกองเวร | Company Head Guardsmen',
+    policeTitle: 'นายกองตำรวจหลวง | Royal Police Battalion Commander',
+    guardProgressTitle: 'Company Head Guardsmen (นายกองเวร)',
+    policeProgressTitle: 'Battalion Commander (นายกองตำรวจหลวง)',
+  },
+  {
+    score: 600,
+    guardTitle: 'นายพันเวร | Battalion Commander of Guardsmen',
+    policeTitle: 'พันตำรวจหลวง | Royal Police Colonel',
+    guardProgressTitle: 'Battalion Commander (นายพันเวร)',
+    policeProgressTitle: 'Colonel (พันตำรวจหลวง)',
+  },
+];

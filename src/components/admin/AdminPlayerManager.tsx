@@ -1,5 +1,6 @@
 import React from 'react';
 import { Player } from '@/lib/types';
+import type { RankThreshold } from '@/lib/types';
 import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
 import { getDisplayPosition, calculateDefaultPosition } from '@/lib/positionUtils';
@@ -21,7 +22,7 @@ interface AdminPlayerManagerProps {
   handleEditPlayer: (player: Player) => void;
   handleDeletePlayer: (player: Player) => void;
   openHistory: (player: Player) => void;
-  rankThresholds: any[];
+  rankThresholds: RankThreshold[];
   divisionCounts: Record<string, number>;
 }
 
@@ -143,7 +144,7 @@ export default function AdminPlayerManager({
 
       {/* Search and Filter */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row">
-        <SearchBar value={search} onChange={setSearch} />
+        <SearchBar key={division} value={search} onChange={setSearch} />
         <DivisionFilter value={division} onChange={handleDivisionChange} counts={divisionCounts} />
       </div>
 
