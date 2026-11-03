@@ -176,8 +176,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            total_score: -999,
-            division: 'ปลดประจำการ',
+            retire: true,
             reason: 'พ้นสภาพ/ลาออก (Manual)'
           }),
         });

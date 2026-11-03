@@ -41,8 +41,6 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const handleAutoCalculatePosition = () => {
     const numScore = Number(score) || 0;
     setPosition(calculateDefaultPosition(numScore, division, thresholds));
@@ -55,6 +53,8 @@ export default function AddPlayerModal({ isOpen, onClose, onAdd }: AddPlayerModa
       setPosition(calculateDefaultPosition(numScore, division, thresholds));
     }
   }, [division, score, thresholds]);
+
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

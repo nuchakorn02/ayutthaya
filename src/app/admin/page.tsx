@@ -37,6 +37,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [topLoading, setTopLoading] = useState(true);
+  const [topIncreasesError, setTopIncreasesError] = useState('');
   const [logsLoading, setLogsLoading] = useState(true);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -119,8 +120,7 @@ export default function AdminPage() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            total_score: -999,
-            division: 'ปลดประจำการ',
+            retire: true,
             reason: 'พ้นสภาพ/ลาออก (Manual)'
           }),
         });
@@ -248,32 +248,39 @@ export default function AdminPage() {
 
   const fetchTopIncreases = useCallback(async () => {
     setTopLoading(true);
+    setTopIncreasesError('');
     try {
       const res = await fetch('/api/admin/top-increases');
       const json = await res.json();
-      const items = json.data || [];
-      if (Array.isArray(items)) {
-        const divisionNames = [
-          'กองทัพมหาเสือพิทักษ์',
-          'กองทัพธรณินพิทักษ์',
-          'กองทัพอาทมาต',
-          'กองพระตำรวจหลวง',
-          'กองทัพที่ 1 ปัญจะซันยะ',
-          'กองทัพที่ 2 วัชรนาถ',
-          'กองทัพที่ 3 ปุณฑริก',
-          'กองทัพที่ 4 เกาโมทก'
-        ];
-        const mapped: (TopIncrease | null)[] = Array(8).fill(null);
-        items.forEach((item: TopIncrease) => {
-          const idx = divisionNames.indexOf(item.division as unknown as string);
-          if (idx !== -1) {
-            mapped[idx] = item;
-          }
-        });
-        setTopIncreases(mapped);
+      if (!res.ok) {
+        throw new Error(json.error || 'ดึงข้อมูลคะแนนที่เพิ่มสูงสุดไม่สำเร็จ');
       }
+      if (!Array.isArray(json.data)) {
+        throw new Error('รูปแบบข้อมูลคะแนนที่เพิ่มสูงสุดไม่ถูกต้อง');
+      }
+
+      const items: TopIncrease[] = json.data;
+      const divisionNames = [
+        'กองทัพมหาเสือพิทักษ์',
+        'กองทัพธรณินพิทักษ์',
+        'กองทัพอาทมาต',
+        'กองพระตำรวจหลวง',
+        'กองทัพที่ 1 ปัญจะซันยะ',
+        'กองทัพที่ 2 วัชรนาถ',
+        'กองทัพที่ 3 ปุณฑริก',
+        'กองทัพที่ 4 เกาโมทก'
+      ];
+      const mapped: (TopIncrease | null)[] = Array(8).fill(null);
+      items.forEach((item) => {
+        const idx = divisionNames.indexOf(item.division);
+        if (idx !== -1) {
+          mapped[idx] = item;
+        }
+      });
+      setTopIncreases(mapped);
     } catch (err) {
       console.error('Failed to fetch top increases:', err);
+      setTopIncreasesError(err instanceof Error ? err.message : 'ดึงข้อมูลคะแนนที่เพิ่มสูงสุดไม่สำเร็จ');
     } finally {
       setTopLoading(false);
     }
@@ -527,6 +534,10 @@ export default function AdminPage() {
 
         {topLoading ? (
           <LoadingSpinner />
+        ) : topIncreasesError ? (
+          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+            {topIncreasesError}
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {topIncreases.map((data, index) => {

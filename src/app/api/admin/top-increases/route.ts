@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getActivePlayersOutcome } from '@/lib/topIncreases.mjs';
 import type { TopIncrease, ApiResponse } from '@/lib/types';
 
 export async function GET() {
@@ -14,11 +15,21 @@ export async function GET() {
       .neq('division', 'ปลดประจำการ')
       .neq('total_score', -999);
 
-    if (playersError || !activePlayers || activePlayers.length === 0) {
+    const activePlayersOutcome = getActivePlayersOutcome(activePlayers, playersError);
+
+    if (activePlayersOutcome.kind === 'error') {
+      console.error('Active players query error:', activePlayersOutcome.message);
+      return NextResponse.json(
+        { error: 'Failed to fetch active players.' } satisfies ApiResponse<never>,
+        { status: 500 }
+      );
+    }
+
+    if (activePlayersOutcome.kind === 'empty') {
       return NextResponse.json({ data: [] } satisfies ApiResponse<TopIncrease[]>);
     }
 
-    const activePlayerIds = activePlayers.map((p) => p.id);
+    const activePlayerIds = activePlayersOutcome.players.map((p) => p.id);
 
     // ดึงเฉพาะ score_history ของ active players เรียงจากใหม่ไปเก่า
     const { data: allHistory, error: historyError } = await adminClient
@@ -61,7 +72,7 @@ export async function GET() {
     }
 
     // ใช้ activePlayers ที่ดึงมาแล้วด้านบน ไม่ต้อง query ซ้ำ
-    const playerMap = new Map(activePlayers.map((p) => [p.id, p]));
+    const playerMap = new Map(activePlayersOutcome.players.map((p) => [p.id, p]));
 
 
     const divisions = [

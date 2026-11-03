@@ -1,63 +1,40 @@
 const { createClient } = require('@supabase/supabase-js');
+const { runHistoryRepair } = require('./historyRepair');
 
-const supabase = createClient(
-  'https://omlbtybplmeryoigwmac.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tbGJ0eWJwbG1lcnlvaWd3bWFjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTczMTI2OSwiZXhwIjoyMDk1MzA3MjY5fQ.v_7DcaXoY_Y_rMc-XbERx0PseWOLeXZD3z1JijywfAE'
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const placeholderValues = new Set([
+  '******',
+  'your_supabase_project_url',
+  'your_supabase_service_role_key',
+]);
 
-async function fixScores() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+if (
+  !supabaseUrl ||
+  !supabaseServiceKey ||
+  placeholderValues.has(supabaseUrl) ||
+  placeholderValues.has(supabaseServiceKey)
+) {
+  console.error(
+    'Missing Supabase credentials. Run with `node --env-file=.env.local scratch/fix_history.js` or set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+  );
+  process.exitCode = 1;
+} else {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  const { data: brokenHistories, error } = await supabase
-    .from('score_history')
-    .select('*, players(player_name)')
-    .eq('old_score', -999)
-    .eq('score_diff', 0)
-    .gte('updated_at', today.toISOString());
+  async function main() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  if (error) {
-    console.error('Error fetching broken histories:', error);
-    return;
+    const outcome = await runHistoryRepair(supabase, {
+      today,
+      log: console.log,
+    });
+    process.exitCode = outcome.exitCode;
   }
 
-  console.log(`Found ${brokenHistories.length} broken history records.`);
-
-  for (const history of brokenHistories) {
-    // Find the record where they were set to -999 in import_logs
-    const { data: previousLog } = await supabase
-      .from('import_logs')
-      .select('old_score')
-      .eq('player_name', history.players.player_name)
-      .eq('new_score', -999)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (previousLog) {
-      const realOldScore = previousLog.old_score;
-      const newScore = history.new_score;
-      const realScoreDiff = newScore - realOldScore;
-
-      if (realScoreDiff !== 0) {
-        console.log(`Fixing player ${history.players.player_name}: Diff ${realScoreDiff}`);
-        
-        // 1. Update score_history
-        await supabase
-          .from('score_history')
-          .update({ score_diff: realScoreDiff })
-          .eq('id', history.id);
-
-        // 2. Update player's latest_change
-        await supabase
-          .from('players')
-          .update({ latest_change: realScoreDiff })
-          .eq('id', history.player_id);
-      }
-    }
-  }
-  
-  console.log('Done fixing database!');
+  main().catch((error) => {
+    console.error('History repair failed:', error);
+    process.exitCode = 1;
+  });
 }
-
-fixScores();

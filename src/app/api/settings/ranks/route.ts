@@ -2,42 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getFallbackRankThresholds, getRankThresholds } from '@/lib/rankSettings';
 
 const SETTINGS_FILE_PATH = path.join(process.cwd(), 'src', 'data', 'rankSettings.json');
-
-function readFallbackFile() {
-  try {
-    if (fs.existsSync(SETTINGS_FILE_PATH)) {
-      const fileContent = fs.readFileSync(SETTINGS_FILE_PATH, 'utf-8');
-      return JSON.parse(fileContent);
-    }
-  } catch (err) {
-    console.error('Error reading fallback rank settings file:', err);
-  }
-  return { thresholds: [] };
-}
 
 export async function GET() {
   try {
     // 1. Try fetching from Supabase database first (persistent across serverless instances)
     try {
       const adminClient = createAdminClient();
-      const { data, error } = await adminClient
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'rank_thresholds')
-        .maybeSingle();
-
-      if (!error && data?.value && Array.isArray(data.value.thresholds)) {
-        return NextResponse.json(data.value);
-      }
+      const thresholds = await getRankThresholds(adminClient);
+      return NextResponse.json({ thresholds });
     } catch (dbErr) {
       console.warn('Supabase app_settings read failed, using filesystem fallback:', dbErr);
     }
 
     // 2. Fallback to local rankSettings.json file
-    const fallbackData = readFallbackFile();
-    return NextResponse.json(fallbackData);
+    return NextResponse.json({ thresholds: getFallbackRankThresholds() });
   } catch (error) {
     console.error('Error in GET /api/settings/ranks:', error);
     return NextResponse.json({ error: 'Failed to read settings' }, { status: 500 });

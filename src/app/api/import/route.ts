@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { createAdminClient } from '@/lib/supabase/server';
 import { calculateDefaultPosition } from '@/lib/positionUtils';
+import { getRankThresholds } from '@/lib/rankSettings';
 import { sendDiscordWebhook } from '@/lib/discord';
 import type { ApiResponse } from '@/lib/types';
 import { autoReconcileScores } from '@/lib/import/reconcile';
 import { matchDivisionFuzzy } from '@/lib/import/divisionMatcher';
+import { getImportPersistenceOutcome } from '@/lib/import/persistenceOutcome.mjs';
 
 interface CsvRow {
   player_name: string;
@@ -408,13 +410,11 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const calculatedPos = customPosition || calculateDefaultPosition(totalScore, playerDivision);
-
         const extractedPlayer = {
           player_name: cleanPlayerName,
           division: playerDivision,
           total_score: totalScore,
-          position: calculatedPos,
+          position: customPosition,
           row_index: i + 1 // Excel row number is 1-indexed
         };
         
@@ -433,9 +433,35 @@ export async function POST(request: NextRequest) {
     console.log('Total extracted players:', rows.length);
     console.log('Sample parsed players (first 5):', JSON.stringify(rows.slice(0, 5)));
 
-    const adminClient = createAdminClient();
+    if (rows.length === 0) {
+      return NextResponse.json(
+        { error: 'ไม่พบรายชื่อผู้เล่นที่นำเข้าได้ จึงไม่มีการเปลี่ยนแปลงข้อมูล' } satisfies ApiResponse<never>,
+        { status: 400 }
+      );
+    }
 
-    // Create the import session record first
+    const adminClient = createAdminClient();
+    const rankThresholds = await getRankThresholds(adminClient);
+
+    for (const row of rows) {
+      if (!row.position) {
+        row.position = calculateDefaultPosition(row.total_score, row.division, rankThresholds);
+      }
+    }
+
+    // 1. Fetch all existing players from the database first for comparison
+    const { data: existingDbPlayers, error: fetchAllError } = await adminClient
+      .from('players')
+      .select('id, player_name, division, total_score, position, starting_score');
+
+    if (fetchAllError) {
+      console.error('Failed to fetch existing players for comparison:', fetchAllError);
+      return NextResponse.json(
+        { error: `ล้มเหลวในการอ่านข้อมูลเดิมเพื่อเปรียบเทียบ: ${fetchAllError.message}` } satisfies ApiResponse<never>,
+        { status: 500 }
+      );
+    }
+
     const { data: newImport, error: importSessionError } = await adminClient
       .from('imports')
       .insert({
@@ -465,19 +491,6 @@ export async function POST(request: NextRequest) {
       is_new: boolean;
     }[] = [];
 
-    // 1. Fetch all existing players from the database first for comparison
-    const { data: existingDbPlayers, error: fetchAllError } = await adminClient
-      .from('players')
-      .select('id, player_name, division, total_score, position, starting_score');
-
-    if (fetchAllError) {
-      console.error('Failed to fetch existing players for comparison:', fetchAllError);
-      return NextResponse.json(
-        { error: `ล้มเหลวในการอ่านข้อมูลเดิมเพื่อเปรียบเทียบ: ${fetchAllError.message}` } satisfies ApiResponse<never>,
-        { status: 500 }
-      );
-    }
-
     const dbPlayerMap = new Map<string, typeof existingDbPlayers[number]>();
     const dbPlayerByNameMap = new Map<string, typeof existingDbPlayers[number]>();
     existingDbPlayers?.forEach((p) => {
@@ -488,6 +501,7 @@ export async function POST(request: NextRequest) {
     let imported = 0;
     let updated = 0;
     const errors: string[] = [];
+    const persistenceErrors: string[] = [];
     const processedKeys = new Set<string>();
     const processedNamesInFile = new Set<string>();
     const processedIds = new Set<string>();
@@ -559,16 +573,13 @@ export async function POST(request: NextRequest) {
         }
 
         if (existingPlayer) {
-          // Track this ID as processed so it won't be deleted at the end!
-          processedIds.add(existingPlayer.id);
-
           const oldScore = existingPlayer.total_score;
           let scoreDiff = totalScore - oldScore;
           
           // Fix for restoring retired players: prevent massive scoreDiff (+1099)
           if (oldScore === -999) {
             // ดึงคะแนนเดิมก่อนที่จะโดน -999 จากประวัติล่าสุด
-            const { data: lastHistory } = await adminClient
+            const { data: lastHistory, error: lastHistoryError } = await adminClient
               .from('score_history')
               .select('old_score')
               .eq('player_id', existingPlayer.id)
@@ -576,6 +587,13 @@ export async function POST(request: NextRequest) {
               .order('created_at', { ascending: false })
               .limit(1)
               .maybeSingle();
+
+            if (lastHistoryError) {
+              const message = `แถวที่ ${rowIndex}: อ่านประวัติคะแนนเดิมไม่สำเร็จ — ${lastHistoryError.message}`;
+              errors.push(message);
+              persistenceErrors.push(message);
+              continue;
+            }
 
             if (lastHistory && lastHistory.old_score !== null) {
               scoreDiff = totalScore - lastHistory.old_score;
@@ -610,9 +628,13 @@ export async function POST(request: NextRequest) {
             .eq('id', existingPlayer.id);
 
           if (updateError) {
-            errors.push(`แถวที่ ${rowIndex}: อัปเดตข้อมูลผู้เล่นล้มเหลว — ${updateError.message}`);
+            const message = `แถวที่ ${rowIndex}: อัปเดตข้อมูลผู้เล่นล้มเหลว — ${updateError.message}`;
+            errors.push(message);
+            persistenceErrors.push(message);
             continue;
           }
+
+          processedIds.add(existingPlayer.id);
 
           // If score changed OR division changed, insert history
           if (oldScore !== totalScore || isDivisionTransfer) {
@@ -626,7 +648,9 @@ export async function POST(request: NextRequest) {
               });
 
             if (historyError) {
-              errors.push(`แถวที่ ${rowIndex}: อัปเดตคะแนนเรียบร้อย แต่การบันทึกประวัติแต้มขัดข้อง — ${historyError.message}`);
+              const message = `แถวที่ ${rowIndex}: อัปเดตคะแนนเรียบร้อย แต่การบันทึกประวัติแต้มขัดข้อง — ${historyError.message}`;
+              errors.push(message);
+              persistenceErrors.push(message);
             }
 
             // Save delta for this import log
@@ -662,7 +686,9 @@ export async function POST(request: NextRequest) {
             .single();
 
           if (insertError) {
-            errors.push(`แถวที่ ${rowIndex}: เพิ่มรายชื่อทหารใหม่ล้มเหลว — ${insertError.message}`);
+            const message = `แถวที่ ${rowIndex}: เพิ่มรายชื่อทหารใหม่ล้มเหลว — ${insertError.message}`;
+            errors.push(message);
+            persistenceErrors.push(message);
             continue;
           }
 
@@ -681,6 +707,9 @@ export async function POST(request: NextRequest) {
                 });
               if (historyError) {
                 console.error(`Failed to insert score_history for new player ${playerName}:`, historyError);
+                const message = `แถวที่ ${rowIndex}: เพิ่มผู้เล่นสำเร็จ แต่บันทึกประวัติคะแนนไม่สำเร็จ — ${historyError.message}`;
+                errors.push(message);
+                persistenceErrors.push(message);
               }
             }
           }
@@ -699,33 +728,44 @@ export async function POST(request: NextRequest) {
           imported++;
         }
       } catch (rowErr) {
-        errors.push(`แถวที่ ${rowIndex}: เกิดข้อผิดพลาดที่ไม่คาดคิด — ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`);
+        const message = `แถวที่ ${rowIndex}: เกิดข้อผิดพลาดที่ไม่คาดคิด — ${rowErr instanceof Error ? rowErr.message : String(rowErr)}`;
+        errors.push(message);
+        persistenceErrors.push(message);
       }
     }
 
-    // 2. Soft delete players who are not in the uploaded spreadsheet.
-    const playersToSoftDelete = existingDbPlayers
-      .filter((p) => !processedIds.has(p.id))
-      .filter((p) => p.division !== 'ปลดประจำการ'); // Don't re-delete
+    // Never retire the roster unless at least one uploaded player was processed successfully.
+    if (processedIds.size === 0) {
+      errors.push('ไม่พบผู้เล่นที่ประมวลผลสำเร็จ จึงข้ามการปลดประจำการผู้เล่นที่ไม่อยู่ในไฟล์');
+    } else {
+      // 2. Soft delete players who are not in the uploaded spreadsheet.
+      const playersToSoftDelete = existingDbPlayers
+        .filter((p) => !processedIds.has(p.id))
+        .filter((p) => p.division !== 'ปลดประจำการ'); // Don't re-delete
 
-    for (const p of playersToSoftDelete) {
-      const { error: updateErr } = await adminClient
-        .from('players')
-        // Medium fix: เพิ่ม total_score: -999 ให้ consistent กับการกดปุ่มพ้นสภาพจาก UI
-        .update({ division: 'ปลดประจำการ', total_score: -999 })
-        .eq('id', p.id);
+      for (const p of playersToSoftDelete) {
+        const { error: updateErr } = await adminClient
+          .from('players')
+          // Medium fix: เพิ่ม total_score: -999 ให้ consistent กับการกดปุ่มพ้นสภาพจาก UI
+          .update({ division: 'ปลดประจำการ', total_score: -999 })
+          .eq('id', p.id);
 
-      if (!updateErr) {
-        // Log this soft delete so Rollback knows their original division
-        logsToInsert.push({
-          import_id: importId,
-          player_name: p.player_name,
-          division: p.division, // Save original division here!
-          old_score: p.total_score,
-          new_score: -999, // Magic flag indicating soft delete
-          score_diff: 0,
-          is_new: false
-        });
+        if (!updateErr) {
+          // Log this soft delete so Rollback knows their original division
+          logsToInsert.push({
+            import_id: importId,
+            player_name: p.player_name,
+            division: p.division, // Save original division here!
+            old_score: p.total_score,
+            new_score: -999, // Magic flag indicating soft delete
+            score_diff: 0,
+            is_new: false
+          });
+        } else {
+          const message = `ปลดประจำการผู้เล่น ${p.player_name} ไม่สำเร็จ — ${updateErr.message}`;
+          errors.push(message);
+          persistenceErrors.push(message);
+        }
       }
     }
 
@@ -747,7 +787,9 @@ export async function POST(request: NextRequest) {
       }
       if (logsInsertError) {
         console.error('Failed to insert import logs in batch:', logsInsertError);
-        errors.push(`ล้มเหลวในการบันทึกประวัติแต้มรายบุคคลของการอัปโหลดครั้งนี้: ${logsInsertError.message}`);
+        const message = `ล้มเหลวในการบันทึกประวัติแต้มรายบุคคลของการอัปโหลดครั้งนี้: ${logsInsertError.message}`;
+        errors.push(message);
+        persistenceErrors.push(message);
       }
     }
 
@@ -762,13 +804,27 @@ export async function POST(request: NextRequest) {
 
     if (updateImportCountsError) {
       console.error('Failed to update import session counts:', updateImportCountsError);
+      const message = `อัปเดตสถิติเซสชันนำเข้าไม่สำเร็จ: ${updateImportCountsError.message}`;
+      errors.push(message);
+      persistenceErrors.push(message);
     }
 
     // Run auto-reconciliation to guarantee history integrity for all players
-    await autoReconcileScores(adminClient);
+    if (persistenceErrors.length === 0) {
+      try {
+        await autoReconcileScores(adminClient);
+      } catch (reconcileError) {
+        const message = `ตรวจสอบและซ่อมประวัติคะแนนไม่สำเร็จ: ${reconcileError instanceof Error ? reconcileError.message : String(reconcileError)}`;
+        errors.push(message);
+        persistenceErrors.push(message);
+      }
+    }
 
-    // Send Discord Webhook notification in background
-    (async () => {
+    const persistenceOutcome = getImportPersistenceOutcome(persistenceErrors);
+
+    if (!persistenceOutcome.partial) {
+      // Send Discord Webhook notification in background
+      (async () => {
       try {
         const fields = [
           { name: '💂 ทหารใหม่เข้ากรม', value: `\`+${imported}\` คน`, inline: true },
@@ -794,11 +850,24 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.error('Failed to send Discord webhook:', err);
       }
-    })();
+      })();
+    }
 
     return NextResponse.json({
-      data: { imported, updated, errors, import_id: importId },
-    } satisfies ApiResponse<ImportResult & { import_id: string }>);
+      ...(persistenceOutcome.partial && {
+        partial: true,
+        error: persistenceOutcome.message || undefined,
+      }),
+      data: {
+        imported,
+        updated,
+        errors,
+        import_id: importId,
+        partial: persistenceOutcome.partial,
+      },
+    } satisfies ApiResponse<ImportResult & { import_id: string; partial: boolean }> & { partial?: boolean }, {
+      status: persistenceOutcome.status,
+    });
   } catch (err) {
     console.error('Unexpected error in POST /api/import:', err);
     return NextResponse.json(
@@ -807,4 +876,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

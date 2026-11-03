@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } from '@/lib/discord';
+import { persistPlayerUpdateWithHistory } from '@/lib/players/scoreUpdatePersistence.mjs';
+import { resolveScoreMutation } from '@/lib/players/scoreMutation.mjs';
 import type { Player, ApiResponse } from '@/lib/types';
 
 
@@ -22,11 +24,21 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { total_score, position, reason, division, player_name } = body;
+    const { total_score, position, reason, division, player_name, retire } = body;
+    let scoreMutation;
 
-    if (total_score === undefined && position === undefined && division === undefined && player_name === undefined) {
+    try {
+      scoreMutation = resolveScoreMutation({ total_score, retire });
+    } catch (validationError) {
       return NextResponse.json(
-        { error: 'total_score, position, division, or player_name is required.' } satisfies ApiResponse<never>,
+        { error: validationError instanceof Error ? validationError.message : 'Invalid score update.' } satisfies ApiResponse<never>,
+        { status: 400 }
+      );
+    }
+
+    if (scoreMutation === null && position === undefined && division === undefined && player_name === undefined) {
+      return NextResponse.json(
+        { error: 'total_score, retire, position, division, or player_name is required.' } satisfies ApiResponse<never>,
         { status: 400 }
       );
     }
@@ -48,7 +60,13 @@ export async function PATCH(
       );
     }
 
-    const updatePayload: any = {};
+    const updatePayload: {
+      player_name?: string;
+      division?: string;
+      total_score?: number;
+      position?: string | null;
+      latest_change?: number;
+    } = {};
     let oldScore = existingPlayer.total_score;
     let newScore = oldScore;
     let scoreDiff = 0;
@@ -82,60 +100,69 @@ export async function PATCH(
       updatePayload.player_name = player_name.trim();
     }
 
-    if (total_score !== undefined && typeof total_score === 'number') {
-      newScore = total_score;
+    if (scoreMutation) {
+      newScore = scoreMutation.score;
       scoreDiff = newScore - oldScore;
       updatePayload.total_score = newScore;
       updatePayload.latest_change = scoreDiff;
+      if (scoreMutation.retired) {
+        updatePayload.division = 'ปลดประจำการ';
+      }
     }
 
     if (position !== undefined) {
       updatePayload.position = position ? position.trim() : null;
     }
 
-    if (division !== undefined) {
+    if (division !== undefined && !scoreMutation?.retired) {
       updatePayload.division = division ? division.trim() : 'ไม่ทราบสังกัด';
     }
 
-    // 2. Update player
-    const { data: updatedPlayer, error: updateError } = await adminClient
-      .from('players')
-      .update(updatePayload)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) {
-      console.error('Player update error:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update player.' } satisfies ApiResponse<never>,
-        { status: 500 }
-      );
-    }
-
-    // 3. Insert score history record if score changed
-    if (scoreDiff !== 0) {
-      const { error: historyError } = await adminClient
-        .from('score_history')
-        .insert({
-          player_id: id,
-          old_score: oldScore,
-          new_score: newScore,
-          score_diff: scoreDiff,
-          reason: reason ? reason.trim() : null,
-        });
-
-      if (historyError) {
-        // Bug fix: อัปเดตคะแนนสำเร็จ แต่บันทึกประวัติผิดพลาด ไม่ตัดสินจบ request เพื่อให้ Discord webhook ยังทำงานได้
-        console.error('Score history insert error (non-fatal):', historyError);
+    let updatedPlayer: Player;
+    if (scoreMutation) {
+      try {
+        const scoreUpdate = await persistPlayerUpdateWithHistory(
+          (functionName, args) => adminClient.rpc(functionName, args),
+          {
+            playerId: id,
+            updates: updatePayload,
+            reason: reason ? reason.trim() : null,
+          }
+        );
+        updatedPlayer = scoreUpdate.player;
+        oldScore = scoreUpdate.old_score;
+        newScore = scoreUpdate.new_score;
+        scoreDiff = scoreUpdate.score_diff;
+      } catch (scoreUpdateError) {
+        console.error('Atomic player score/history update error:', scoreUpdateError);
+        return NextResponse.json(
+          { error: 'Failed to update player and score history.' } satisfies ApiResponse<never>,
+          { status: 500 }
+        );
       }
+    } else {
+      const { data, error: updateError } = await adminClient
+        .from('players')
+        .update(updatePayload)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Player update error:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to update player.' } satisfies ApiResponse<never>,
+          { status: 500 }
+        );
+      }
+      updatedPlayer = data;
     }
 
     if (scoreDiff !== 0) {
       const diffSign = scoreDiff > 0 ? '+' : '';
       const playerName = existingPlayer.player_name;
       const divisionName = existingPlayer.division;
-      const playerPos = (updatedPlayer as any).position || 'ไม่มีตำแหน่ง';
+      const playerPos = updatedPlayer.position || 'ไม่มีตำแหน่ง';
       
       // Determine embed color from division or default to gold
       const embedColor = DIVISION_EMBED_COLORS[divisionName] || 13938487;
@@ -145,7 +172,7 @@ export async function PATCH(
         try {
           const avatarUrl = await getRobloxAvatarUrl(playerName);
 
-          const fields = [
+          const fields: { name: string; value: string; inline: boolean }[] = [
             { name: '💂 กำลังพล', value: `[${playerName}](https://www.roblox.com/users/profile?username=${encodeURIComponent(playerName)})`, inline: true },
             { name: '🛡️ กองสังกัด', value: divisionName, inline: true },
             { name: '🎖️ ยศ/ตำแหน่ง', value: playerPos, inline: true },
@@ -156,7 +183,14 @@ export async function PATCH(
             fields.push({ name: '📝 เหตุผลการปรับปรุง', value: reason.trim(), inline: false });
           }
 
-          const embed: any = {
+          const embed: {
+            title: string;
+            color: number;
+            fields: { name: string; value: string; inline: boolean }[];
+            timestamp: string;
+            footer: { text: string; icon_url: string };
+            thumbnail?: { url: string };
+          } = {
             title: scoreDiff > 0 ? '📈 มอบแต้มกิจกรรมกำลังรบสำเร็จ!' : '📉 หักแต้มสะสมกำลังรบ!',
             color: embedColor,
             fields: fields,

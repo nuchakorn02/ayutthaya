@@ -6,6 +6,8 @@ interface ImportResult {
   imported: number;
   updated: number;
   errors: string[];
+  import_id?: string;
+  partial?: boolean;
 }
 
 interface CsvImporterProps {
@@ -20,6 +22,21 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
   const [error, setError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePartialResponse = (payload: {
+    partial?: boolean;
+    error?: string;
+    data?: ImportResult;
+  }) => {
+    if (!payload.partial || !payload.data) return false;
+
+    setResult({ ...payload.data, partial: true });
+    setError(payload.error || 'การนำเข้าสำเร็จเพียงบางส่วน กรุณาตรวจสอบข้อผิดพลาดก่อนดำเนินการต่อ');
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    onImportComplete?.();
+    return true;
+  };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -101,10 +118,10 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
             setFile(null);
             if (fileInputRef.current) fileInputRef.current.value = '';
             onImportComplete?.();
-          } else {
+          } else if (!handlePartialResponse(json)) {
             setError(json.error || 'Import failed');
           }
-        } catch (err) {
+        } catch {
           setError('เกิดข้อผิดพลาดในการนำเข้า');
         }
       }, 400);
@@ -140,6 +157,10 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
       const json = await res.json();
 
       if (!res.ok) {
+        if (handlePartialResponse(json)) {
+          setOnedriveUrl('');
+          return;
+        }
         throw new Error(json.error || 'Import failed');
       }
 
@@ -289,8 +310,14 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
 
       {/* Success Result */}
       {result && (
-        <div className="mt-4 space-y-2 rounded-xl border border-green-500/20 bg-green-500/10 p-4">
-          <p className="font-semibold text-green-400">นำเข้าสำเร็จ!</p>
+        <div className={`mt-4 space-y-2 rounded-xl border p-4 ${
+          result.partial
+            ? 'border-red-500/20 bg-red-500/10'
+            : 'border-green-500/20 bg-green-500/10'
+        }`}>
+          <p className={`font-semibold ${result.partial ? 'text-red-400' : 'text-green-400'}`}>
+            {result.partial ? 'นำเข้าได้บางส่วน — กรุณาตรวจสอบก่อนนำเข้าซ้ำ' : 'นำเข้าสำเร็จ!'}
+          </p>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div className="flex items-center gap-2 text-text-secondary">
               <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
@@ -301,6 +328,11 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
               อัปเดต: <span className="font-mono text-blue-400">{result.updated}</span>
             </div>
           </div>
+          {result.partial && result.import_id && (
+            <p className="text-xs text-red-300">
+              รหัสเซสชัน: <span className="font-mono">{result.import_id}</span> — ข้อมูลอาจถูกเขียนไปบางส่วน โปรดตรวจสอบรายการนี้ก่อนนำเข้าซ้ำ
+            </p>
+          )}
           {result.errors.length > 0 && (
             <div className="mt-2 border-t border-white/5 pt-2">
               <p className="text-xs font-medium text-red-400">ข้อผิดพลาด:</p>
