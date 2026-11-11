@@ -8,10 +8,10 @@ create table if not exists public.app_settings (
 -- Enable Row Level Security (RLS)
 alter table public.app_settings enable row level security;
 
--- Allow public read access to settings
+-- Allow public read access only to safe, non-secret settings
 create policy "Allow public read access to app_settings"
   on public.app_settings for select
-  using (true);
+  using (key in ('rank_thresholds'));
 
 -- Allow service role full access
 create policy "Allow service role full access to app_settings"

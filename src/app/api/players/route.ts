@@ -157,7 +157,8 @@ export async function POST(request: NextRequest) {
           }
 
           await sendDiscordWebhook({
-            embeds: [embed]
+            embeds: [embed],
+            eventType: 'edit',
           });
         } catch (webhookErr) {
           console.error('[Discord Webhook Exception] Failed to send new player notification:', webhookErr);

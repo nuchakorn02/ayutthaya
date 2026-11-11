@@ -183,6 +183,7 @@ export async function PATCH(
             fields.push({ name: '📝 เหตุผลการปรับปรุง', value: reason.trim(), inline: false });
           }
 
+          const isRetired = Boolean(scoreMutation?.retired);
           const embed: {
             title: string;
             color: number;
@@ -191,8 +192,10 @@ export async function PATCH(
             footer: { text: string; icon_url: string };
             thumbnail?: { url: string };
           } = {
-            title: scoreDiff > 0 ? '📈 มอบแต้มกิจกรรมกำลังรบสำเร็จ!' : '📉 หักแต้มสะสมกำลังรบ!',
-            color: embedColor,
+            title: isRetired
+              ? '🚪 กำลังพลพ้นสภาพ / ปลดประจำการ'
+              : (scoreDiff > 0 ? '📈 มอบแต้มกิจกรรมกำลังรบสำเร็จ!' : '📉 หักแต้มสะสมกำลังรบ!'),
+            color: isRetired ? 10034459 : embedColor,
             fields: fields,
             timestamp: new Date().toISOString(),
             footer: {
@@ -207,7 +210,7 @@ export async function PATCH(
 
           await sendDiscordWebhook({
             embeds: [embed],
-            eventType: 'edit',
+            eventType: isRetired ? 'delete' : 'edit',
           });
         } catch (webhookErr) {
           console.error('[Discord Webhook Exception] Failed in background sender:', webhookErr);
@@ -242,6 +245,12 @@ export async function DELETE(
     }
 
     const adminClient = createAdminClient();
+    const { data: existingPlayer } = await adminClient
+      .from('players')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
     const { error } = await adminClient.from('players').delete().eq('id', id);
 
     if (error) {
@@ -250,6 +259,37 @@ export async function DELETE(
         { error: 'Failed to delete player.' } satisfies ApiResponse<never>,
         { status: 500 }
       );
+    }
+
+    if (existingPlayer) {
+      (async () => {
+        try {
+          const avatarUrl = await getRobloxAvatarUrl(existingPlayer.player_name);
+          const embed = {
+            title: '🗑️ ลบข้อมูลกำลังพลออกจากระบบ',
+            color: 10034459,
+            fields: [
+              { name: '💂 กำลังพล', value: `[${existingPlayer.player_name}](https://www.roblox.com/users/profile?username=${encodeURIComponent(existingPlayer.player_name)})`, inline: true },
+              { name: '🛡️ กองสังกัด', value: existingPlayer.division, inline: true },
+              { name: '🎖️ ยศ/ตำแหน่ง', value: existingPlayer.position || 'ไม่มีตำแหน่ง', inline: true },
+              { name: '📉 คะแนนสะสมเดิม', value: `\`${existingPlayer.total_score}\` แต้ม`, inline: false },
+            ],
+            timestamp: new Date().toISOString(),
+            footer: {
+              text: 'ระบบแต้มกรมทหารราชวัลลภ',
+              icon_url: 'https://omlbtybplmeryoigwmac.supabase.co/storage/v1/object/public/public_assets/logo.png'
+            },
+            ...(avatarUrl ? { thumbnail: { url: avatarUrl } } : {}),
+          };
+
+          await sendDiscordWebhook({
+            embeds: [embed],
+            eventType: 'delete',
+          });
+        } catch (webhookErr) {
+          console.error('[Discord Webhook Exception] Failed in delete notification:', webhookErr);
+        }
+      })();
     }
 
     return NextResponse.json({ data: { id } } satisfies ApiResponse<{ id: string }>);
