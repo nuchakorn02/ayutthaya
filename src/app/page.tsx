@@ -108,7 +108,8 @@ export default function HomePage() {
     return () => clearInterval(autoRefresh);
   }, [fetchPlayers]);
 
-  const filteredPlayers = useMemo(() => {
+  // 1. Pre-filter by division and sort (BEFORE search) to establish true leaderboard ranks
+  const divisionSortedPlayers = useMemo(() => {
     let result = [...players];
     
     // First, filter by division if selected
@@ -125,13 +126,25 @@ export default function HomePage() {
       result.sort((a, b) => b.total_score - a.total_score);
     }
 
-    if (search.trim()) {
-      const query = search.toLowerCase();
-      result = result.filter((p) => p.player_name.toLowerCase().includes(query));
-    }
-
     return result;
-  }, [players, division, search, divisionSortBy]);
+  }, [players, division, divisionSortBy]);
+
+  // 2. Map each non-executive player ID to their true rank in current leaderboard/division
+  const rankMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const nonExec = divisionSortedPlayers.filter(p => p.division !== 'คณะผู้บริหาร');
+    nonExec.forEach((p, idx) => {
+      map.set(p.id, idx + 1);
+    });
+    return map;
+  }, [divisionSortedPlayers]);
+
+  // 3. Search query filter
+  const filteredPlayers = useMemo(() => {
+    if (!search.trim()) return divisionSortedPlayers;
+    const query = search.toLowerCase();
+    return divisionSortedPlayers.filter((p) => p.player_name.toLowerCase().includes(query));
+  }, [divisionSortedPlayers, search]);
 
   // useMemo: คำนวณใหม่เฉพาะเมื่อ players เปลี่ยน ไม่ recalculate ทุก render
   const divisionCounts = useMemo(() =>
@@ -186,7 +199,7 @@ export default function HomePage() {
     const headers = ['อันดับ', 'ชื่อผู้เล่น (Roblox)', 'กองสังกัด', 'ยศ/ตำแหน่ง', 'คะแนนสะสม'];
     
     const rows = filteredPlayers.map((player, index) => {
-      const rank = player.division === 'คณะผู้บริหาร' ? 'ผู้บริหาร' : String(index + 1);
+      const rank = player.division === 'คณะผู้บริหาร' ? 'ผู้บริหาร' : String(rankMap.get(player.id) ?? (index + 1));
       const position = getDisplayPosition(player.position, player.total_score, player.division, thresholds);
       const score = player.total_score;
 
@@ -452,6 +465,7 @@ export default function HomePage() {
                   searchQuery={search}
                   onClearSearch={() => setSearch('')}
                   thresholds={thresholds}
+                  rankMap={rankMap}
                 />
               )}
             </div>

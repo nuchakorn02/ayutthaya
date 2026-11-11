@@ -12,11 +12,12 @@ interface LeaderboardProps {
   searchQuery?: string;
   onClearSearch?: () => void;
   thresholds?: RankThreshold[];
+  rankMap?: Map<string, number>;
 }
 
 const PAGE_SIZE = 50;
 
-export default function Leaderboard({ players, isSortedByScore, rankChanges, searchQuery, onClearSearch, thresholds }: LeaderboardProps) {
+export default function Leaderboard({ players, isSortedByScore, rankChanges, searchQuery, onClearSearch, thresholds, rankMap }: LeaderboardProps) {
   const resetKey = `${players.length}:${isSortedByScore}:${searchQuery ?? ''}`;
   const [visibleCountState, setVisibleCountState] = useState({
     resetKey,
@@ -84,7 +85,7 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
               <PlayerRow
                 key={player.id}
                 player={player}
-                rank={index + 1}
+                rank={rankMap?.get(player.id) ?? (index + 1)}
                 isSortedByScore={isSortedByScore}
                 rankChange={rankChanges ? rankChanges[player.id] : undefined}
                 thresholds={thresholds}
@@ -124,7 +125,7 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
               <PlayerRow
                 key={player.id}
                 player={player}
-                rank={index + 1}
+                rank={rankMap?.get(player.id) ?? (index + 1)}
                 isSortedByScore={isSortedByScore}
                 rankChange={rankChanges ? rankChanges[player.id] : undefined}
                 thresholds={thresholds}
@@ -144,30 +145,23 @@ export default function Leaderboard({ players, isSortedByScore, rankChanges, sea
             <button
               onClick={() => setVisibleCountState((previous) => ({
                 ...previous,
-                count: Math.min(previous.count + PAGE_SIZE, players.length),
+                count: Math.min(players.length, previous.count + PAGE_SIZE),
               }))}
-              className="glass-card flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-accent-gold border border-accent-gold/30 rounded-xl hover:border-accent-gold hover:bg-accent-gold/10 transition-all hover:scale-105 cursor-pointer shadow-[0_0_15px_rgba(212,175,55,0.08)]"
+              className="px-4 py-2 text-xs font-bold text-accent-gold border border-accent-gold/30 rounded-xl hover:border-accent-gold/60 hover:bg-accent-gold/10 transition-all cursor-pointer"
             >
-              <span>➕</span>
-              <span>โหลดเพิ่ม 50 นาย (เหลืออีก {players.length - visibleCount})</span>
+              แสดงเพิ่มอีก {Math.min(PAGE_SIZE, players.length - visibleCount)} คน
             </button>
             <button
               onClick={() => setVisibleCountState((previous) => ({
                 ...previous,
                 count: players.length,
               }))}
-              className="glass-card px-3 py-2 text-xs font-semibold text-text-secondary border border-white/10 rounded-xl hover:text-text-primary hover:border-white/20 transition-all cursor-pointer"
+              className="px-4 py-2 text-xs font-bold text-text-secondary border border-white/10 rounded-xl hover:text-text-primary hover:border-white/20 transition-all cursor-pointer"
             >
-              แสดงทั้งหมด
+              แสดงทั้งหมด ({players.length})
             </button>
           </div>
         </div>
-      )}
-
-      {!hasMore && players.length > PAGE_SIZE && (
-        <p className="mt-6 text-center text-xs text-text-secondary/50">
-          ✓ แสดงรายชื่อกำลังพลครบทั้งหมด {players.length} นายแล้ว
-        </p>
       )}
     </>
   );

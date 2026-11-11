@@ -1,6 +1,6 @@
 export function escapeCsvCell(value) {
   const text = String(value ?? '');
-  const safeText = typeof value === 'string' && /^[\s\u0000-\u001f]*[=+\-@]/.test(text)
+  const safeText = typeof value === 'string' && /^[\s\u0000-\u001f]*[=+\-@\t\r]/.test(text)
     ? `'${text}`
     : text;
 

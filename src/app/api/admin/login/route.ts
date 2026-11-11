@@ -48,19 +48,32 @@ export async function POST(request: NextRequest) {
 
     const now = Date.now();
     const memAttempt = memoryRateLimiter.get(ip);
-    if (memAttempt && memAttempt.lockedUntil && memAttempt.lockedUntil > now) {
-      const remainingMin = Math.ceil((memAttempt.lockedUntil - now) / (1000 * 60));
-      return NextResponse.json(
-        { error: `คุณป้อนรหัสผ่านผิดเกิน ${MAX_ATTEMPTS} ครั้ง ระบบได้ระงับการเข้าสู่ระบบ ${LOCKOUT_MINUTES} นาที กรุณาลองใหม่ในอีก ${remainingMin} นาที` } satisfies ApiResponse<never>,
-        { status: 429 }
-      );
+    if (memAttempt && memAttempt.lockedUntil) {
+      if (memAttempt.lockedUntil > now) {
+        const remainingMin = Math.ceil((memAttempt.lockedUntil - now) / (1000 * 60));
+        return NextResponse.json(
+          { error: `คุณป้อนรหัสผ่านผิดเกิน ${MAX_ATTEMPTS} ครั้ง ระบบได้ระงับการเข้าสู่ระบบ ${LOCKOUT_MINUTES} นาที กรุณาลองใหม่ในอีก ${remainingMin} นาที` } satisfies ApiResponse<never>,
+          { status: 429 }
+        );
+      } else {
+        // Lockout expired, clear in-memory lockout so next attempt starts fresh
+        memoryRateLimiter.delete(ip);
+      }
     }
 
-    const passwordBuffer = Buffer.from(password);
-    const adminPasswordBuffer = Buffer.from(adminPassword);
-    const isPasswordValid =
-      passwordBuffer.length === adminPasswordBuffer.length &&
-      crypto.timingSafeEqual(passwordBuffer, adminPasswordBuffer);
+    // Prune in-memory cache to prevent memory accumulation
+    if (memoryRateLimiter.size > 1000) {
+      for (const [key, val] of memoryRateLimiter.entries()) {
+        if (!val.lockedUntil || val.lockedUntil <= now) {
+          memoryRateLimiter.delete(key);
+        }
+      }
+    }
+
+    // Constant-time comparison using fixed-size SHA-256 hashes to prevent timing and length leaks
+    const passwordHash = crypto.createHash('sha256').update(password).digest();
+    const adminPasswordHash = crypto.createHash('sha256').update(adminPassword).digest();
+    const isPasswordValid = crypto.timingSafeEqual(passwordHash, adminPasswordHash);
 
     let attemptResult: LoginAttemptResult;
     const adminClient = createAdminClient();
