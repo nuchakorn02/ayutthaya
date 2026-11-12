@@ -8,6 +8,7 @@ import type { ApiResponse, Player } from '@/lib/types';
 import { autoReconcileScores } from '@/lib/import/reconcile';
 import { matchDivisionFuzzy } from '@/lib/import/divisionMatcher';
 import { getImportPersistenceOutcome } from '@/lib/import/persistenceOutcome.mjs';
+import { getLogSafeUrlOrigin } from '@/lib/import/urlLog.mjs';
 
 interface ParsedImportRow {
   player_name: string;
@@ -88,16 +89,17 @@ export async function POST(request: NextRequest) {
       }
 
       let finalUrl = url.trim();
+      const safeFinalUrl = getLogSafeUrlOrigin(finalUrl);
 
       if (finalUrl.includes('onedrive.live.com') || finalUrl.includes('1drv.ms')) {
         // Fix: ใช้ &download=1 แทน api.onedrive.com/v1.0 ที่ Microsoft ปิดไปแล้ว
         // รองรับทั้งลิงก์รูปแบบเก่า (onedrive.live.com) และใหม่ (1drv.ms/x/c/...)
         const separator = finalUrl.includes('?') ? '&' : '?';
         finalUrl = `${finalUrl}${separator}download=1`;
-        console.log('[OneDrive] Using download=1 approach:', finalUrl);
+        console.log('[OneDrive] Using download=1 approach:', safeFinalUrl);
       }
 
-      console.log('Fetching spreadsheet from URL:', finalUrl);
+      console.log('Fetching spreadsheet from URL origin:', safeFinalUrl);
       const res = await fetch(finalUrl, {
         headers: {
           // ส่ง User-Agent เพื่อป้องกันการถูก block โดย CDN บางตัว
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
             const base64 = Buffer.from(url.trim()).toString('base64');
             const encoded = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             const graphUrl = `https://graph.microsoft.com/v1.0/shares/u!${encoded}/driveItem/content`;
-            console.log('[OneDrive] Falling back to Graph API:', graphUrl);
+            console.log('[OneDrive] Falling back to Graph API:', getLogSafeUrlOrigin(graphUrl));
 
             const graphRes = await fetch(graphUrl, { redirect: 'follow' });
             if (graphRes.ok) {
