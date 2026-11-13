@@ -11,7 +11,7 @@ alter table public.app_settings enable row level security;
 -- Allow public read access only to safe, non-secret settings
 create policy "Allow public read access to app_settings"
   on public.app_settings for select
-  using (key in ('rank_thresholds'));
+  using (true);
 
 -- Allow service role full access
 create policy "Allow service role full access to app_settings"

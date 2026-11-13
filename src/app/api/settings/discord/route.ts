@@ -41,7 +41,7 @@ export async function GET() {
       import_template: settings.import_template ?? '',
     });
   } catch (error) {
-    console.error('Error in GET /api/admin/settings/discord:', error);
+    console.error('Error in GET /api/settings/discord:', error);
     return NextResponse.json({ error: 'Failed to load Discord settings' }, { status: 500 });
   }
 }
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    console.error('Error in POST /api/admin/settings/discord:', error);
+    console.error('Error in POST /api/settings/discord:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to process request' },
       { status: 500 }

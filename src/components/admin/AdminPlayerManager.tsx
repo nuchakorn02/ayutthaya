@@ -3,7 +3,8 @@ import { Player } from '@/lib/types';
 import type { RankThreshold } from '@/lib/types';
 import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
-import { getDisplayPosition, calculateDefaultPosition } from '@/lib/positionUtils';
+import { getDisplayPosition } from '@/lib/positionUtils';
+import { RobloxProfileLink } from '@/components/RobloxProfileLink';
 
 interface AdminPlayerManagerProps {
   filteredPlayers: Player[];
@@ -197,17 +198,15 @@ export default function AdminPlayerManager({
                         </div>
                         <div className="flex items-center gap-1.5 font-semibold text-text-primary">
                           <span>{player.player_name}</span>
-                          <a
-                            href={`https://www.roblox.com/users/profile?username=${encodeURIComponent(player.player_name)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <RobloxProfileLink
+                            playerName={player.player_name}
                             title={`ดูโปรไฟล์ Roblox ของ ${player.player_name}`}
                             className="text-text-secondary/50 hover:text-accent-gold transition-colors inline-flex p-0.5 rounded hover:bg-white/5"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
-                          </a>
+                          </RobloxProfileLink>
                         </div>
                       </div>
                     </td>

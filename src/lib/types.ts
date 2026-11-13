@@ -57,3 +57,40 @@ export interface RankThreshold {
   policeTitle: string;
   guardTitle: string;
 }
+
+export interface ImportValidationError {
+  source_row: number | null;
+  reason: string;
+}
+
+export interface ImportPreviewRow {
+  action: 'new' | 'update' | 'retire' | 'error';
+  source_row: number | null;
+  player_id?: string;
+  player_name: string;
+  division: string;
+  current_score: number | null;
+  proposed_score: number | null;
+  score_diff: number | null;
+  message?: string;
+}
+
+export interface ImportPlan {
+  rows: ImportPreviewRow[];
+  counts: { new: number; updated: number; retired: number; errors: number };
+  errors: ImportValidationError[];
+}
+
+export interface ImportPreview {
+  source_name: string;
+  source_fingerprint: string;
+  comparison_fingerprint: string;
+  confirmation_token: string | null;
+  rows: ImportPreviewRow[];
+  counts: { new: number; updated: number; retired: number; errors: number };
+  errors: ImportValidationError[];
+}
+
+export interface ImportComparisonState {
+  players: Player[];
+}

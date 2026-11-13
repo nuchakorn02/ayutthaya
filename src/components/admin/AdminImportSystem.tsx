@@ -1,5 +1,6 @@
 import React from 'react';
 import { ImportSession, ImportLog } from '@/lib/types';
+import { RETIRED_SCORE } from '@/lib/constants.mjs';
 import CsvImporter from '@/components/CsvImporter';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -251,7 +252,7 @@ export default function AdminImportSystem({
                         if (!matchesSearch) return false;
                         
                         const isNew = log.old_score === 0;
-                        const isResigned = log.new_score === -999;
+                        const isResigned = log.new_score === RETIRED_SCORE;
                         
                         if (sessionFilterType === 'new') return isNew && !isResigned;
                         if (sessionFilterType === 'resigned') return isResigned;
@@ -283,8 +284,8 @@ export default function AdminImportSystem({
                             </thead>
                             <tbody>
                               {filteredLogs.map((log) => {
-                                const isNew = log.old_score === 0 && log.new_score !== -999;
-                                const isResigned = log.new_score === -999;
+                                const isNew = log.old_score === 0 && log.new_score !== RETIRED_SCORE;
+                                const isResigned = log.new_score === RETIRED_SCORE;
                                 const diffSign = log.score_diff > 0 ? '+' : '';
                                 
                                 let diffColor = log.score_diff > 0 

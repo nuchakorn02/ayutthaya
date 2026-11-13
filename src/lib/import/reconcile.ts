@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/server';
+import { RETIRED_SCORE } from '@/lib/constants.mjs';
 
 /**
  * Auto-reconcile score_history to ensure no player is missing history
@@ -9,7 +10,7 @@ export async function autoReconcileScores(adminClient: ReturnType<typeof createA
     .from('players')
     .select('id, total_score, starting_score')
     .neq('division', 'ปลดประจำการ')
-    .neq('total_score', -999);
+    .neq('total_score', RETIRED_SCORE);
 
   if (playersError) {
     throw new Error(`Failed to fetch players for score reconciliation: ${playersError.message}`);

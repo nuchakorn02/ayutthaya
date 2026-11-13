@@ -1,6 +1,7 @@
 'use client';
 
 import { ScoreHistory } from '@/lib/types';
+import { RETIRED_SCORE } from '@/lib/constants.mjs';
 import LoadingSpinner from './LoadingSpinner';
 
 interface ScoreHistoryModalProps {
@@ -69,7 +70,7 @@ export default function ScoreHistoryModal({
           ) : (
             <div className="relative border-l-2 border-white/10 ml-4 space-y-6 pb-4 pt-2">
               {historyData.map((log) => {
-                const isRetirement = log.new_score === -999;
+                const isRetirement = log.new_score === RETIRED_SCORE;
                 const diffSign = log.score_diff > 0 ? '+' : '';
                 const isPositive = log.score_diff > 0;
                 const isNegative = log.score_diff < 0;

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import type { ImportPreview } from '@/lib/types';
+import ImportPreviewTable from '@/components/admin/ImportPreviewTable';
 
 interface ImportResult {
   imported: number;
@@ -17,25 +19,19 @@ interface CsvImporterProps {
 export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState('');
-  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePartialResponse = (payload: {
-    partial?: boolean;
-    error?: string;
-    data?: ImportResult;
-  }) => {
-    if (!payload.partial || !payload.data) return false;
+  const [onedriveUrl, setOnedriveUrl] = useState('');
 
-    setResult({ ...payload.data, partial: true });
-    setError(payload.error || 'การนำเข้าสำเร็จเพียงบางส่วน กรุณาตรวจสอบข้อผิดพลาดก่อนดำเนินการต่อ');
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    onImportComplete?.();
-    return true;
+  const resetPreview = () => {
+    setPreview(null);
+    setResult(null);
+    setError('');
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -54,8 +50,7 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
       setFile(droppedFile);
-      setResult(null);
-      setError('');
+      resetPreview();
     }
   }, []);
 
@@ -63,117 +58,94 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setResult(null);
-      setError('');
+      resetPreview();
     }
   };
 
-  const handleUpload = () => {
-    if (!file) return;
-
-    setIsUploading(true);
-    setError('');
-    setResult(null);
-    setUploadProgress(0);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const xhr = new XMLHttpRequest();
-
-    // Track upload progress up to 90%
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = Math.round((event.loaded / event.total) * 100);
-        const scaledProgress = Math.min(Math.round(percentComplete * 0.9), 90);
-        setUploadProgress(scaledProgress);
-      }
-    };
-
-    // Keep progress bar moving slowly while server processes
-    let processingInterval: NodeJS.Timeout;
-    xhr.upload.onload = () => {
-      let currentProgress = 90;
-      processingInterval = setInterval(() => {
-        if (currentProgress < 98) {
-          currentProgress += 1;
-          setUploadProgress(currentProgress);
-        } else {
-          clearInterval(processingInterval);
-        }
-      }, 250);
-    };
-
-    xhr.onload = () => {
-      if (processingInterval) clearInterval(processingInterval);
-      setUploadProgress(100);
-      
-      // Delay disabling loading slightly so user sees 100% completion
-      setTimeout(() => {
-        setIsUploading(false);
-        try {
-          const json = JSON.parse(xhr.responseText);
-          if (xhr.status >= 200 && xhr.status < 300) {
-            setResult(json.data);
-            setFile(null);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-            onImportComplete?.();
-          } else if (!handlePartialResponse(json)) {
-            setError(json.error || 'Import failed');
-          }
-        } catch {
-          setError('เกิดข้อผิดพลาดในการนำเข้า');
-        }
-      }, 400);
-    };
-
-    xhr.onerror = () => {
-      if (processingInterval) clearInterval(processingInterval);
-      setIsUploading(false);
-      setError('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย');
-    };
-
-    xhr.open('POST', '/api/import');
-    xhr.send(formData);
+  const handleUrlChange = (value: string) => {
+    setOnedriveUrl(value);
+    resetPreview();
   };
 
-  const [onedriveUrl, setOnedriveUrl] = useState('');
-  const [isUrlImporting, setIsUrlImporting] = useState(false);
+  const handlePreview = async () => {
+    if (!file && !onedriveUrl.trim()) return;
 
-  const handleUrlImport = async () => {
-    if (!onedriveUrl.trim()) return;
-
-    setIsUrlImporting(true);
+    setIsPreviewing(true);
     setError('');
     setResult(null);
 
     try {
+      const formData = new FormData();
+      formData.append('action', 'preview');
+      if (file) {
+        formData.append('file', file);
+      } else {
+        formData.append('url', onedriveUrl.trim());
+      }
+
       const res = await fetch('/api/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: onedriveUrl.trim() }),
+        body: formData,
       });
 
       const json = await res.json();
 
       if (!res.ok) {
-        if (handlePartialResponse(json)) {
-          setOnedriveUrl('');
-          return;
-        }
-        throw new Error(json.error || 'Import failed');
+        throw new Error(json.error || 'ตรวจสอบไฟล์ไม่สำเร็จ');
       }
 
-      setResult(json.data);
-      setOnedriveUrl('');
-      onImportComplete?.();
+      setPreview(json.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการนำเข้าผ่านลิงก์');
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการตรวจสอบ');
     } finally {
-      setIsUrlImporting(false);
+      setIsPreviewing(false);
     }
   };
 
+  const handleConfirm = async () => {
+    if (!preview?.confirmation_token) return;
+
+    setIsConfirming(true);
+    setError('');
+
+    try {
+      const formData = new FormData();
+      formData.append('action', 'confirm');
+      formData.append('confirmation_token', preview.confirmation_token);
+      formData.append('source_fingerprint', preview.source_fingerprint);
+      formData.append('comparison_fingerprint', preview.comparison_fingerprint);
+      if (file) {
+        formData.append('file', file);
+      } else {
+        formData.append('url', onedriveUrl.trim());
+      }
+
+      const res = await fetch('/api/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || 'นำเข้าไม่สำเร็จ');
+      }
+
+      setResult(json.data);
+      setPreview(null);
+      setFile(null);
+      setOnedriveUrl('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      onImportComplete?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการนำเข้า');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  const canPreview = (file || onedriveUrl.trim()) && !isPreviewing && !isConfirming;
+  const canConfirm = preview && preview.confirmation_token && !isConfirming && !isPreviewing;
 
   return (
     <div className="glass-card p-6">
@@ -226,46 +198,6 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
         )}
       </div>
 
-      {/* Upload Button */}
-      {file && !isUploading && (
-        <button
-          onClick={handleUpload}
-          disabled={isUploading}
-          className="mt-4 w-full rounded-xl bg-gradient-to-r from-accent-gold to-accent-crimson
-            px-6 py-3 font-semibold text-[#fcf9f2] transition-all duration-300
-            hover:shadow-[0_0_30px_rgba(212,175,55,0.25)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-        >
-          นำเข้าข้อมูลทหาร
-        </button>
-      )}
-
-      {/* Upload Progress Bar */}
-      {isUploading && (
-        <div className="mt-4 space-y-2 animate-slide-up">
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-text-secondary font-medium">
-              {uploadProgress < 90 ? 'กำลังส่งข้อมูลทหาร...' : uploadProgress < 100 ? 'กำลังประมวลผลเซกเตอร์ฐานข้อมูล...' : 'นำเข้าเสร็จสิ้น!'}
-            </span>
-            <span className="font-mono font-bold text-accent-gold">{uploadProgress}%</span>
-          </div>
-          <div className="w-full bg-[#160b0b] border border-accent-gold/15 rounded-full h-3 overflow-hidden p-0.5 shadow-[inset_0_1px_4px_rgba(0,0,0,0.5)]">
-            <div
-              className="bg-gradient-to-r from-accent-gold to-accent-crimson h-full rounded-full transition-all duration-300 relative overflow-hidden"
-              style={{ width: `${uploadProgress}%` }}
-            >
-              {/* Highlight shimmer animation */}
-              <div 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent" 
-                style={{ 
-                  backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                  animation: 'shimmer-gold 2s infinite'
-                }} 
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* OneDrive URL Input */}
       {!file && (
         <div className="mt-6 border-t border-white/10 pt-6">
@@ -277,27 +209,52 @@ export default function CsvImporter({ onImportComplete }: CsvImporterProps) {
               type="text"
               placeholder="วางลิงก์แชร์ OneDrive ที่นี่..."
               value={onedriveUrl}
-              onChange={(e) => setOnedriveUrl(e.target.value)}
+              onChange={(e) => handleUrlChange(e.target.value)}
               className="flex-1 rounded-xl border border-white/10 bg-bg-secondary px-4 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/40 focus:border-accent-cyan focus:outline-none"
             />
+          </div>
+        </div>
+      )}
+
+      {/* Preview Button */}
+      {canPreview && (
+        <button
+          onClick={handlePreview}
+          disabled={isPreviewing}
+          className="mt-4 w-full rounded-xl bg-gradient-to-r from-accent-cyan to-accent-purple
+            px-6 py-3 font-semibold text-bg-primary transition-all duration-300
+            hover:shadow-[0_0_20px_rgba(0,240,255,0.2)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        >
+          {isPreviewing ? 'กำลังตรวจสอบ...' : 'ตรวจสอบก่อนนำเข้า'}
+        </button>
+      )}
+
+      {/* Preview Result */}
+      {preview && (
+        <div className="mt-4 space-y-4 rounded-xl border border-accent-cyan/20 bg-accent-cyan/5 p-4">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-accent-cyan">ผลการตรวจสอบ: {preview.source_name}</p>
             <button
-              onClick={handleUrlImport}
-              disabled={isUrlImporting || !onedriveUrl.trim()}
-              className="rounded-xl bg-gradient-to-r from-accent-cyan to-accent-purple px-5 py-2.5 text-sm font-semibold text-bg-primary transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,240,255,0.2)] disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap"
+              onClick={resetPreview}
+              className="text-xs text-text-secondary hover:text-text-primary"
             >
-              {isUrlImporting ? (
-                <span className="flex items-center gap-1.5">
-                  <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  กำลังนำเข้า...
-                </span>
-              ) : (
-                'นำเข้าจากลิงก์'
-              )}
+              ยกเลิก
             </button>
           </div>
+
+          <ImportPreviewTable preview={preview} />
+
+          {canConfirm && (
+            <button
+              onClick={handleConfirm}
+              disabled={isConfirming}
+              className="w-full rounded-xl bg-gradient-to-r from-accent-gold to-accent-crimson
+                px-6 py-3 font-semibold text-[#fcf9f2] transition-all duration-300
+                hover:shadow-[0_0_30px_rgba(212,175,55,0.25)] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+            >
+              {isConfirming ? 'กำลังนำเข้า...' : 'ยืนยันนำเข้า'}
+            </button>
+          )}
         </div>
       )}
 

@@ -1,3 +1,5 @@
+import { RETIRED_SCORE } from '../constants.mjs';
+
 export function resolveScoreMutation({ total_score, retire }) {
   if (retire !== undefined && retire !== false && retire !== true) {
     throw new Error('retire must be true when requesting player retirement.');
@@ -7,7 +9,7 @@ export function resolveScoreMutation({ total_score, retire }) {
     if (total_score !== undefined) {
       throw new Error('A retirement request must not include total_score.');
     }
-    return { score: -999, retired: true };
+    return { score: RETIRED_SCORE, retired: true };
   }
 
   if (total_score === undefined) return null;

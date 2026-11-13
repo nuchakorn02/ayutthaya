@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { resolveScoreMutation } from './scoreMutation.mjs';
+import { RETIRED_SCORE } from '../constants.mjs';
 
 test('rejects direct negative scores including the retired-player sentinel', () => {
   assert.throws(() => resolveScoreMutation({ total_score: -1 }), /non-negative/);
-  assert.throws(() => resolveScoreMutation({ total_score: -999 }), /non-negative/);
+  assert.throws(() => resolveScoreMutation({ total_score: RETIRED_SCORE }), /non-negative/);
 });
 
 test('accepts finite non-negative numeric scores', () => {
@@ -13,9 +14,9 @@ test('accepts finite non-negative numeric scores', () => {
 });
 
 test('keeps retirement available as an explicit action without accepting a score sentinel', () => {
-  assert.deepEqual(resolveScoreMutation({ retire: true }), { score: -999, retired: true });
+  assert.deepEqual(resolveScoreMutation({ retire: true }), { score: RETIRED_SCORE, retired: true });
   assert.throws(
-    () => resolveScoreMutation({ retire: true, total_score: -999 }),
+    () => resolveScoreMutation({ retire: true, total_score: RETIRED_SCORE }),
     /must not include total_score/
   );
 });

@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Player, ScoreHistory, RankThreshold } from '@/lib/types';
 import AnimatedCounter from '@/components/AnimatedCounter';
-import { calculateDefaultPosition, getDisplayPosition, getRankProgression } from '@/lib/positionUtils';
+import { getDisplayPosition, getRankProgression } from '@/lib/positionUtils';
 import { DIVISION_COLORS } from '@/lib/constants';
+import { RobloxProfileLink } from './RobloxProfileLink';
 
 
 /** Small sub-component so each chart dot can manage its own hover state without violating Rules of Hooks */
@@ -353,11 +354,8 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
                 loading="lazy"
               />
             </div>
-            <a
-              href={`https://www.roblox.com/users/profile?username=${encodeURIComponent(player.player_name)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            <RobloxProfileLink
+              playerName={player.player_name}
               title={`ดูโปรไฟล์ Roblox ของ ${player.player_name}`}
               className="inline-flex items-center gap-1.5 group/roblox hover:text-accent-gold transition-colors"
             >
@@ -367,7 +365,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
               <svg className="w-3.5 h-3.5 text-text-secondary/50 group-hover/roblox:text-accent-gold opacity-0 group-hover/roblox:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
-            </a>
+            </RobloxProfileLink>
             {/* Badges */}
             <div className="flex gap-1.5 ml-2 flex-shrink-0">
               {player.total_score >= 500 && (
@@ -500,11 +498,8 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
 
                 <div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <a
-                      href={`https://www.roblox.com/users/profile?username=${encodeURIComponent(player.player_name)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
+                    <RobloxProfileLink
+                      playerName={player.player_name}
                       title={`ดูโปรไฟล์ Roblox ของ ${player.player_name}`}
                       className="inline-flex items-center gap-1 group/roblox hover:text-accent-gold transition-colors"
                     >
@@ -518,7 +513,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
                       <svg className="w-3 h-3 text-text-secondary/50 group-hover/roblox:text-accent-gold shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
-                    </a>
+                    </RobloxProfileLink>
                     {/* Badges (Mobile) */}
                     {player.total_score >= 500 && (
                       <span className="inline-flex items-center rounded bg-amber-500/10 px-1 py-0.5 text-[8px] font-bold text-amber-400 border border-amber-500/20 whitespace-nowrap select-none">

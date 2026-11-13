@@ -45,7 +45,7 @@ export async function proxy(request: NextRequest) {
   
   if (isApiRoute) {
     const isWriteMethod = ['POST', 'PATCH', 'DELETE', 'PUT'].includes(method);
-    const isAdminApi = pathname.startsWith('/api/admin/');
+    const isAdminApi = pathname.startsWith('/api/admin/') || pathname === '/api/settings/discord';
     const isLoginEndpoint = pathname === '/api/admin/login';
     
     // Whitelist: endpoints ที่เป็น public และต้องการ method พิเศษ

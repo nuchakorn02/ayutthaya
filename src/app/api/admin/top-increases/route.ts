@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { getActivePlayersOutcome } from '@/lib/topIncreases.mjs';
+import { RETIRED_SCORE } from '@/lib/constants.mjs';
 import type { TopIncrease, ApiResponse } from '@/lib/types';
 
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
       .from('players')
       .select('id, player_name, division')
       .neq('division', 'ปลดประจำการ')
-      .neq('total_score', -999);
+      .neq('total_score', RETIRED_SCORE);
 
     const activePlayersOutcome = getActivePlayersOutcome(activePlayers, playersError);
 

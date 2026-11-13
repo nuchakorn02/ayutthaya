@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Player, RankThreshold } from '@/lib/types';
+import { RETIRED_SCORE } from '@/lib/constants.mjs';
+import { calculateDefaultPosition } from '@/lib/positionUtils';
 
 interface ScoreUpdaterProps {
   player: Player | null;
@@ -12,7 +14,7 @@ interface ScoreUpdaterProps {
 
 export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: ScoreUpdaterProps) {
   const [newScore, setNewScore] = useState(() =>
-    player ? String(player.total_score === -999 ? 0 : player.total_score) : ''
+    player ? String(player.total_score === RETIRED_SCORE ? 0 : player.total_score) : ''
   );
   const [newName, setNewName] = useState(() => player?.player_name ?? '');
   const [newPosition, setNewPosition] = useState(() => player?.position ?? '');
@@ -37,7 +39,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
 
   const handleAutoCalculatePosition = () => {
     const score = Number(newScore) || 0;
-    
+
     // Preserve special leader and instructor titles if already assigned to avoid overwriting them
     if (
       player.position?.startsWith('ปลัดราชวัลลภ') ||
@@ -50,53 +52,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
       return;
     }
 
-    // Special divisions assignment
-    if (player.division === 'กองทัพมหาเสือพิทักษ์') {
-      setNewPosition('ทหารเสือประจำพระองค์');
-      return;
-    }
-    if (player.division === 'กองทัพธรณินพิทักษ์') {
-      setNewPosition('ทหารธรณินพิทักษ์');
-      return;
-    }
-    if (player.division === 'กองทัพอาทมาต') {
-      setNewPosition('หมื่นอาทมาต');
-      return;
-    }
-
-    const isPolice = player.division === 'กองพระตำรวจหลวง';
-    
-    // Score based rank assignment (excluding ครูฝึก)
-    if (thresholds.length > 0) {
-      for (const t of thresholds) {
-        if (score >= t.score) {
-          setNewPosition(isPolice ? t.policeTitle : t.guardTitle);
-          return;
-        }
-      }
-      const last = thresholds[thresholds.length - 1];
-      setNewPosition(isPolice ? last.policeTitle : last.guardTitle);
-      return;
-    }
-
-    // Fallback if settings are not loaded
-    if (score >= 600) {
-      setNewPosition(isPolice ? 'พันตำรวจหลวง | Royal Police Colonel' : 'นายพันเวร | Battalion Commander of Guardsmen');
-    } else if (score >= 315) {
-      setNewPosition(isPolice ? 'นายกองตำรวจหลวง | Royal Police Battalion Commander' : 'นายกองเวร | Company Head Guardsmen');
-    } else if (score >= 210) {
-      setNewPosition(isPolice ? 'นายหมวดตำรวจหลวง | Royal Police Platoon Officer' : 'นายหมวดเวร | Platoon Head Guardsmen');
-    } else if (score >= 110) {
-      setNewPosition(isPolice ? 'นายหมู่ตำรวจหลวง | Royal Police Squad Leader' : 'นายหมู่เวร | Squad Head Guardsmen');
-    } else if (score >= 60) {
-      setNewPosition(isPolice ? 'พลตำรวจหลวงอาวุโส | Senior Royal Police Trooper' : 'พลทหารยามอาวุโส | Senior Guardsmen');
-    } else if (score >= 45) {
-      setNewPosition(isPolice ? 'พลตำรวจหลวงพิเศษ | Senior Royal Police Special Royal Police Trooper' : 'พลทหารราชวัลลภพิเศษ | Royal Elite Guardsmen');
-    } else if (score >= 20) {
-      setNewPosition(isPolice ? 'พลประจำการตำรวจหลวง | Active Royal Police Trooper' : 'พลทหารยาม | Guardsmen');
-    } else {
-      setNewPosition(isPolice ? 'พลตำรวจหลวง สายขาว | Royal Police Trooper (White Line)' : 'พลอาสาสมัครทหารยาม | Junior Guardsmen');
-    }
+    setNewPosition(calculateDefaultPosition(score, player.division, thresholds));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,7 +60,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
     
     // Bug fix: ป้องกันการ submit -999 โดยบังเอิญ
       const scoreNum = Number(newScore);
-      if (scoreNum === -999) {
+      if (scoreNum === RETIRED_SCORE) {
         setFeedback({ type: 'error', message: 'ไม่สามารถเซ็ตคะแนนเป็น -999 ได้โดยตรง ถ้าต้องการให้พ้นสภาพ กรุณากดปุ่มด้านล่างแทน' });
         return;
       }
@@ -220,7 +176,7 @@ export default function ScoreUpdater({ player, isOpen, onClose, onUpdate }: Scor
         </div>
 
         {/* Retired Player Warning Banner */}
-        {player.total_score === -999 && (
+        {player.total_score === RETIRED_SCORE && (
           <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 flex items-start gap-2">
             <span className="text-amber-400 text-sm shrink-0">⚠️</span>
             <p className="text-xs text-amber-400 font-medium">

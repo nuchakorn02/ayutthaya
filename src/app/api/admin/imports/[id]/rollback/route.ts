@@ -2,25 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import type { ApiResponse } from '@/lib/types';
 import { sendDiscordWebhook } from '@/lib/discord';
+import { rollbackImport, RollbackRpcError } from '@/lib/import/rollbackRpc';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    
-
     const { id: importId } = await params;
     const adminClient = createAdminClient();
 
-    const { error: rollbackError } = await adminClient.rpc('rollback_import_session', {
-      p_import_id: importId,
-    });
+    try {
+      await rollbackImport(
+        async (fn, args) => {
+          const { data, error } = await adminClient.rpc(fn, args);
+          return { data, error };
+        },
+        importId
+      );
+    } catch (err) {
+      console.error(`Failed to rollback import session ${importId}:`, err);
 
-    if (rollbackError) {
-      console.error(`Failed to rollback import session ${importId}:`, rollbackError);
+      if (err instanceof RollbackRpcError && err.code === 'PZ001') {
+        return NextResponse.json(
+          { error: 'ไม่สามารถย้อนกลับเซสชันนี้ได้ เนื่องจากข้อมูล snapshot ไม่ครบถ้วน กรุณาติดต่อผู้ดูแลระบบ' } satisfies ApiResponse<never>,
+          { status: 409 }
+        );
+      }
 
-      if (rollbackError.message.includes('was not found')) {
+      if (err instanceof RollbackRpcError && err.message.includes('was not found')) {
         return NextResponse.json(
           { error: 'ไม่พบเซสชันนำเข้าที่ต้องการย้อนกลับ' } satisfies ApiResponse<never>,
           { status: 404 }
@@ -28,7 +38,7 @@ export async function POST(
       }
 
       return NextResponse.json(
-        { error: `ย้อนกลับไม่สำเร็จ ข้อมูลเซสชันยังคงอยู่: ${rollbackError.message}` } satisfies ApiResponse<never>,
+        { error: `ย้อนกลับไม่สำเร็จ ข้อมูลเซสชันยังคงอยู่: ${err instanceof Error ? err.message : String(err)}` } satisfies ApiResponse<never>,
         { status: 500 }
       );
     }
@@ -39,7 +49,7 @@ export async function POST(
         const embed = {
           title: '⚠️ แจ้งยกเลิกแต้มรอบล่าสุดจ้า',
           description: 'แอดมินขอยกเลิกการปรับแต้มของรอบที่แล้วน้า ตอนนี้ดึงคะแนนของทุกคนกลับไปเป็นแบบเดิมก่อนหน้านี้เรียบร้อยแล้วครับ',
-          color: 10034459, // Crimson Red #991B1B
+          color: 10034459,
           fields: [
             { name: '📋 สถานะ', value: 'คะแนนและยศกลับไปเป็นเหมือนเดิมแล้วจ้า', inline: false }
           ],
