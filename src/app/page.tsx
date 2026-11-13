@@ -8,7 +8,6 @@ import Leaderboard from '@/components/Leaderboard';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import ExecutiveBoard from '@/components/ExecutiveBoard';
-import PlaLeaderBoard from '@/components/PlaLeaderBoard';
 import { getDisplayPosition } from '@/lib/positionUtils';
 import { escapeCsvCell } from '@/lib/csvExport.mjs';
 
@@ -421,9 +420,6 @@ export default function HomePage() {
             <div className={loading ? 'opacity-30 pointer-events-none transition-opacity duration-300' : 'transition-opacity duration-300'}>
               {/* Executive Board */}
               <ExecutiveBoard players={execPlayers} />
-
-              {/* Chief of the Royal Guard Board */}
-              <PlaLeaderBoard players={filteredPlayers} />
 
               {/* Division Sorting & Header Controls */}
               {division && division !== 'คณะผู้บริหาร' && normalPlayers.length > 0 && (
