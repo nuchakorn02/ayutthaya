@@ -1,13 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useEffectEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import AdminNav from '@/components/AdminNav';
 import TopIncreaseCard from '@/components/TopIncreaseCard';
-import CsvImporter from '@/components/CsvImporter';
 import ScoreUpdater from '@/components/ScoreUpdater';
-import SearchBar from '@/components/SearchBar';
-import DivisionFilter from '@/components/DivisionFilter';
 import { Player, TopIncrease, ImportSession, ImportLog } from '@/lib/types';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import AddPlayerModal from '@/components/AddPlayerModal';
@@ -15,18 +12,15 @@ import ScoreHistoryModal from '@/components/ScoreHistoryModal';
 import RankSettingsModal from '@/components/RankSettingsModal';
 import DiscordSettingsModal from '@/components/DiscordSettingsModal';
 import type { ScoreHistory, RankThreshold } from '@/lib/types';
-import { calculateDefaultPosition, getDisplayPosition } from '@/lib/positionUtils';
 import AdminAuditLogs, { AuditLog } from '@/components/admin/AdminAuditLogs';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import AdminPlayerManager from '@/components/admin/AdminPlayerManager';
 import AdminImportSystem from '@/components/admin/AdminImportSystem';
-import { DivisionBarChart, DivisionDonutChart } from '@/components/admin/AdminCharts';
 
 
 
 export default function AdminPage() {
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
-  const [players, setPlayers] = useState<Player[]>([]);
   const [topIncreases, setTopIncreases] = useState<(TopIncrease | null)[]>(
     Array(8).fill(null)
   );
@@ -41,7 +35,6 @@ export default function AdminPage() {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Toast notification state
   const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
@@ -126,7 +119,6 @@ export default function AdminPage() {
 
   const handleRetirePlayer = async (player: Player) => {
     if (confirm(`คุณแน่ใจหรือไม่ว่าต้องการให้ "${player.player_name}" พ้นสภาพ/ลาออก?\nข้อมูลคะแนนจะยังถูกเก็บไว้ แต่ชื่อจะถูกซ่อนจากทำเนียบหลัก`)) {
-      setIsDeleting(true);
       try {
         const res = await fetch(`/api/players/${player.id}`, {
           method: 'PATCH',
@@ -146,8 +138,6 @@ export default function AdminPage() {
         fetchLogs();
       } catch (err) {
         showToast('error', err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ');
-      } finally {
-        setIsDeleting(false);
       }
     }
   };
@@ -248,14 +238,13 @@ export default function AdminPage() {
       const res = await fetch('/api/players');
       const json = await res.json();
       const playerList = json.data || [];
-      setPlayers(playerList);
       setAllPlayers(playerList);
     } catch (err) {
       console.error('Failed to fetch players:', err);
     } finally {
       setLoading(false);
     }
-  }, [setPlayers, setAllPlayers, setLoading]);
+  }, [setAllPlayers, setLoading]);
 
   const fetchTopIncreases = useCallback(async () => {
     try {
@@ -308,7 +297,8 @@ export default function AdminPage() {
     }
   }, [setLogs, setLogsLoading]);
 
-  const fetchWeeklyPoints = async () => {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const fetchWeeklyPoints = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/logs?since=7d');
       const json = await res.json();
@@ -318,7 +308,7 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Failed to fetch weekly points:', err);
     }
-  };
+  }, [setWeeklyPoints]);
 
   const fetchImportSessions = useCallback(async () => {
     try {
@@ -348,38 +338,35 @@ export default function AdminPage() {
     }
   }, [setSessionLogs, setSessionLogsLoading]);
 
-  const loadSessionLogs = useEffectEvent((sessionId: string) => {
-    void fetchSessionLogs(sessionId);
-  });
-
-  const loadAdminData = useEffectEvent(() => {
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    // These callbacks update React state only after their network requests settle.
     void fetchPlayers();
     void fetchTopIncreases();
     void fetchLogs();
     void fetchWeeklyPoints();
     void fetchImportSessions();
-  });
+  }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchWeeklyPoints, fetchImportSessions]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  const refreshAdminData = useEffectEvent(() => {
-    void fetchPlayers();
-    void fetchTopIncreases();
-    void fetchLogs();
-    void fetchWeeklyPoints();
-  });
-
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    // These callbacks update React state only after their network requests settle.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadAdminData();
-  }, []);
+    if (selectedSession) {
+      void fetchSessionLogs(selectedSession.id);
+    }
+  }, [selectedSession, fetchSessionLogs]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Auto-refresh every 5 minutes to keep data up-to-date
   useEffect(() => {
     const autoRefresh = setInterval(() => {
-      refreshAdminData();
+      void fetchPlayers();
+      void fetchTopIncreases();
+      void fetchLogs();
+      void fetchWeeklyPoints();
     }, 5 * 60 * 1000);
     return () => clearInterval(autoRefresh);
-  }, []);
+  }, [fetchPlayers, fetchTopIncreases, fetchLogs, fetchWeeklyPoints]);
 
   const handleRefreshAll = () => {
     setLoading(true);
@@ -393,14 +380,6 @@ export default function AdminPage() {
     fetchImportSessions();
     showToast('success', 'รีโหลดข้อมูลทั้งหมดแล้ว');
   };
-
-  useEffect(() => {
-    if (selectedSession) {
-      // Session logs are updated only after the history request completes.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      loadSessionLogs(selectedSession.id);
-    }
-  }, [selectedSession]);
 
   const handleDivisionChange = (value: string) => {
     setDivision(value);
@@ -470,18 +449,6 @@ export default function AdminPage() {
     // Filename in Thai with current Date backup stamp
     const dateStamp = new Date().toLocaleDateString('th-TH').replace(/\//g, '-');
     XLSX.writeFile(workbook, `ทำเนียบทหารรักษาพระองค์_สำรองข้อมูล_${dateStamp}.xlsx`);
-  };
-
-  const divisionColors: Record<string, string> = {
-    'คณะผู้บริหาร': 'text-purple-400',
-    'กองทัพธรณินพิทักษ์': 'text-violet-400',
-    'กองทัพมหาเสือพิทักษ์': 'text-amber-500',
-    'กองทัพอาทมาต': 'text-zinc-400',
-    'กองพระตำรวจหลวง': 'text-amber-500',
-    'กองทัพที่ 1 ปัญจะซันยะ': 'text-slate-300',
-    'กองทัพที่ 2 วัชรนาถ': 'text-rose-400',
-    'กองทัพที่ 3 ปุณฑริก': 'text-emerald-400',
-    'กองทัพที่ 4 เกาโมทก': 'text-sky-400',
   };
 
   const divisionCounts = allPlayers.reduce((acc, p) => { acc[p.division] = (acc[p.division] || 0) + 1; return acc; }, {} as Record<string, number>);

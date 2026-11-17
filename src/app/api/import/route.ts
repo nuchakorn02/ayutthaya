@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { sendDiscordWebhook } from '@/lib/discord';
 import type { ApiResponse } from '@/lib/types';
 import { matchDivisionFuzzy } from '@/lib/import/divisionMatcher';
 import { downloadImportFile } from '@/lib/import/remoteFile';
@@ -264,6 +265,31 @@ export async function POST(request: NextRequest) {
       ...result.errors,
       ...result.persistence_errors.map((e) => e.message),
     ];
+
+    // Notify Discord about the import result (fire-and-forget; do not block response)
+    (async () => {
+      try {
+        await sendDiscordWebhook({
+          embeds: [
+            {
+              title: partial ? '⚠️ นำเข้าไฟล์บางส่วนไม่สำเร็จ' : '📥 นำเข้าไฟล์สำเร็จ',
+              color: partial ? 15158332 : 5763719,
+              fields: [
+                { name: '📁 ไฟล์', value: source.fileName || 'OneDrive Remote File', inline: true },
+                { name: '🌟 เข้าใหม่', value: String(result.imported), inline: true },
+                { name: '🔄 อัปเดต', value: String(result.updated), inline: true },
+                ...(errors.length > 0 ? [{ name: '⚠️ ข้อผิดพลาด', value: errors.slice(0, 5).join('\n'), inline: false }] : []),
+              ],
+              timestamp: new Date().toISOString(),
+              footer: { text: 'ระบบแต้มกรมทหารราชวัลลภ' },
+            },
+          ],
+          eventType: 'import',
+        });
+      } catch (webhookErr) {
+        console.error('[Discord Webhook Exception] Failed in import notification:', webhookErr);
+      }
+    })();
 
     return NextResponse.json(
       {

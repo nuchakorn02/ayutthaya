@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { sendDiscordWebhook, getRobloxAvatarUrl, DIVISION_EMBED_COLORS } from '@/lib/discord';
 import { persistPlayerUpdateWithHistory } from '@/lib/players/scoreUpdatePersistence.mjs';
 import { resolveScoreMutation } from '@/lib/players/scoreMutation.mjs';
+import { DIVISIONS } from '@/lib/constants';
 import type { Player, ApiResponse } from '@/lib/types';
 
 
@@ -115,7 +116,17 @@ export async function PATCH(
     }
 
     if (division !== undefined && !scoreMutation?.retired) {
-      updatePayload.division = division ? division.trim() : 'ไม่ทราบสังกัด';
+      const trimmedDivision = division.trim();
+      if (!trimmedDivision) {
+        updatePayload.division = 'ไม่ทราบสังกัด';
+      } else if (!DIVISIONS.some((validDivision) => validDivision === trimmedDivision)) {
+        return NextResponse.json(
+          { error: `Invalid division "${trimmedDivision}". Must be one of the valid divisions.` } satisfies ApiResponse<never>,
+          { status: 400 }
+        );
+      } else {
+        updatePayload.division = trimmedDivision;
+      }
     }
 
     let updatedPlayer: Player;

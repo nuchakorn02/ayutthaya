@@ -1,8 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getSupabaseConfig } = require('./supabase-env');
+const { getSupabaseConfig, getSupabaseDbConfig } = require('./supabase-env');
 
-const REQUIRED_ENV = ['NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+const REQUIRED_ENV = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_DB_HOST',
+  'SUPABASE_DB_USER',
+  'SUPABASE_DB_PASSWORD',
+  'SUPABASE_DB_PORT',
+  'SUPABASE_DB_NAME',
+];
 
 function setEnv(t, values) {
   const previous = new Map(
@@ -60,4 +68,59 @@ test('returns configured values without changing them', (t) => {
     supabaseUrl: config.NEXT_PUBLIC_SUPABASE_URL,
     supabaseServiceRoleKey: config.SUPABASE_SERVICE_ROLE_KEY,
   });
+});
+
+test('requires DB host, user, and password', (t) => {
+  setEnv(t, {
+    NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+  });
+
+  assert.throws(() => getSupabaseDbConfig(), /SUPABASE_DB_HOST/);
+});
+
+test('returns DB config with defaults for optional values', (t) => {
+  const config = {
+    NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+    SUPABASE_DB_HOST: 'db.placeholder.supabase.co',
+    SUPABASE_DB_USER: 'postgres',
+    SUPABASE_DB_PASSWORD: 'test-password',
+  };
+  setEnv(t, config);
+
+  assert.deepEqual(getSupabaseDbConfig(), {
+    host: config.SUPABASE_DB_HOST,
+    port: 5432,
+    user: config.SUPABASE_DB_USER,
+    password: config.SUPABASE_DB_PASSWORD,
+    database: 'postgres',
+    ssl: { rejectUnauthorized: false },
+  });
+});
+
+test('DB config accepts overrides and custom port', (t) => {
+  const config = {
+    NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',
+    SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+    SUPABASE_DB_HOST: 'db.placeholder.supabase.co',
+    SUPABASE_DB_USER: 'postgres',
+    SUPABASE_DB_PASSWORD: 'test-password',
+    SUPABASE_DB_PORT: '6543',
+    SUPABASE_DB_NAME: 'customdb',
+  };
+  setEnv(t, config);
+
+  assert.deepEqual(
+    getSupabaseDbConfig({ host: 'overridden.host', connectionTimeoutMillis: 2000 }),
+    {
+      host: 'overridden.host',
+      port: 6543,
+      user: config.SUPABASE_DB_USER,
+      password: config.SUPABASE_DB_PASSWORD,
+      database: 'customdb',
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 2000,
+    }
+  );
 });

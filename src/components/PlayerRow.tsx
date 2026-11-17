@@ -129,7 +129,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
   };
 
   const drawScoreChart = () => {
-    const scores = [player.starting_score ?? player.total_score];
+    const scores = [typeof player.starting_score === 'number' ? player.starting_score : player.total_score];
     const dates = ['เริ่มแรก'];
 
     history.forEach((h) => {
@@ -347,6 +347,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
               isSortedByScore && rank === 3 ? 'border-amber-700 shadow-[0_0_6px_rgba(205,127,50,0.3)]' :
               'border-white/10'
             }`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
                 alt={player.player_name}
@@ -488,6 +489,7 @@ export default function PlayerRow({ player, rank, isSortedByScore, rankChange, t
                   isSortedByScore && rank === 3 ? 'border-amber-700 shadow-[0_0_6px_rgba(205,127,50,0.3)]' :
                   'border-white/10'
                 }`}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
                     alt={player.player_name}

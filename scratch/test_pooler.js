@@ -1,15 +1,12 @@
 const { Client } = require('pg');
+const { getSupabaseDbConfig } = require('./supabase-env');
 
-const client = new Client({
-  host: 'aws-0-ap-southeast-1.pooler.supabase.com',
-  port: 6543, // Transaction pooler
-  user: 'postgres.omlbtybplmeryoigwmac',
-  password: '1212312121',
-  database: 'postgres',
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
+const client = new Client(
+  getSupabaseDbConfig({
+    host: process.env.SUPABASE_DB_POOLER_HOST || 'aws-0-ap-southeast-1.pooler.supabase.com',
+    port: parseInt(process.env.SUPABASE_DB_POOLER_PORT || '6543', 10),
+  })
+);
 
 async function run() {
   try {

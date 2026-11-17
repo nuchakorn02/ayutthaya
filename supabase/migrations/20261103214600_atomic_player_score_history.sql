@@ -11,9 +11,9 @@ AS $$
 DECLARE
   v_existing public.players%ROWTYPE;
   v_updated public.players%ROWTYPE;
-  v_old_score integer;
-  v_new_score integer;
-  v_score_diff integer;
+  v_old_score double precision;
+  v_new_score double precision;
+  v_score_diff double precision;
 BEGIN
   IF jsonb_typeof(p_updates) <> 'object' THEN
     RAISE EXCEPTION 'Player updates must be a JSON object';
@@ -27,7 +27,7 @@ BEGIN
 
   v_old_score := v_existing.total_score;
   v_new_score := CASE
-    WHEN p_updates ? 'total_score' THEN (p_updates->>'total_score')::integer
+    WHEN p_updates ? 'total_score' THEN (p_updates->>'total_score')::double precision
     ELSE v_old_score
   END;
   v_score_diff := v_new_score - v_old_score;

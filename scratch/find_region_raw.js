@@ -1,4 +1,5 @@
 const { Client } = require('pg');
+const { getSupabaseDbConfig } = require('./supabase-env');
 
 const regions = [
   'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1', 'ap-northeast-2',
@@ -9,15 +10,13 @@ const regions = [
 async function run() {
   for (const region of regions) {
     const host = `aws-0-${region}.pooler.supabase.com`;
-    const client = new Client({
-      host: host,
-      port: 6543,
-      user: 'postgres.omlbtybplmeryoigwmac',
-      password: '1212312121',
-      database: 'postgres',
-      ssl: { rejectUnauthorized: false },
-      connectionTimeoutMillis: 2000
-    });
+    const client = new Client(
+      getSupabaseDbConfig({
+        host,
+        port: 6543,
+        connectionTimeoutMillis: 2000,
+      })
+    );
 
     try {
       await client.connect();

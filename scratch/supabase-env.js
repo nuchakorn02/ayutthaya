@@ -13,4 +13,19 @@ function getSupabaseConfig() {
   };
 }
 
-module.exports = { getSupabaseConfig };
+function getSupabaseDbConfig(overrides = {}) {
+  const host = overrides.host || requiredEnv('SUPABASE_DB_HOST');
+  return {
+    host,
+    port: overrides.port || parseInt(process.env.SUPABASE_DB_PORT || '5432', 10),
+    user: overrides.user || requiredEnv('SUPABASE_DB_USER'),
+    password: requiredEnv('SUPABASE_DB_PASSWORD'),
+    database: process.env.SUPABASE_DB_NAME || 'postgres',
+    ssl: { rejectUnauthorized: false },
+    ...(overrides.connectionTimeoutMillis
+      ? { connectionTimeoutMillis: overrides.connectionTimeoutMillis }
+      : {}),
+  };
+}
+
+module.exports = { getSupabaseConfig, getSupabaseDbConfig };

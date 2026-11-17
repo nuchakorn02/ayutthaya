@@ -1,15 +1,17 @@
 const { Client } = require('pg');
+const { getSupabaseDbConfig } = require('./supabase-env');
 
-const client = new Client({
-  host: '2406:da1c:61c:d601:58ad:3e19:a8c8:163f',
-  port: 5432,
-  user: 'postgres',
-  password: '1212312121',
-  database: 'postgres',
-  ssl: {
-    rejectUnauthorized: false
+function requiredEnv(name) {
+  const value = process.env[name];
+  if (!value || value.trim() === '') {
+    throw new Error(`Missing required environment variable: ${name}`);
   }
-});
+  return value;
+}
+
+const client = new Client(
+  getSupabaseDbConfig({ host: requiredEnv('SUPABASE_DB_IPV6_HOST') })
+);
 
 async function run() {
   try {

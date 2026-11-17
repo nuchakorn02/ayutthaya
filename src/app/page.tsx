@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useEffectEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Player, RankThreshold } from '@/lib/types';
 import SearchBar from '@/components/SearchBar';
 import DivisionFilter from '@/components/DivisionFilter';
 import Leaderboard from '@/components/Leaderboard';
-import LoadingSpinner from '@/components/LoadingSpinner';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import ExecutiveBoard from '@/components/ExecutiveBoard';
 import { getDisplayPosition } from '@/lib/positionUtils';
 import { escapeCsvCell } from '@/lib/csvExport.mjs';
+import Image from 'next/image';
 
 export default function HomePage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -89,16 +89,12 @@ export default function HomePage() {
     }
   }, []);
 
-  const loadPlayers = useEffectEvent(() => {
-    void fetchPlayers();
-  });
-
   // Fetch all players on mount
   useEffect(() => {
     // The fetch callback updates state only after the network request settles.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadPlayers();
-  }, []);
+    void fetchPlayers();
+  }, [fetchPlayers]);
 
   // Auto-refresh every 5 minutes so viewers see latest scores without manual reload
   useEffect(() => {
@@ -250,9 +246,13 @@ export default function HomePage() {
       <header className="mb-2 text-center animate-slide-up relative z-10">
         {/* Logo Emblem Image */}
         <div className="inline-block mb-4 relative">
-          <img 
-            src="/logo.png" 
-            alt="ตราสัญลักษณ์ กรมทหารราชวัลลภ" 
+          <Image
+            src="/logo.png"
+            alt="ตราสัญลักษณ์ กรมทหารราชวัลลภ"
+            width={144}
+            height={144}
+            priority
+            loading="eager"
             className="h-28 w-28 md:h-36 md:w-36 object-contain rounded-full border border-accent-gold/30 shadow-[0_0_20px_rgba(212,175,55,0.25)] hover:scale-105 transition-transform duration-300 relative z-10"
           />
           {/* Subtle golden background glow */}

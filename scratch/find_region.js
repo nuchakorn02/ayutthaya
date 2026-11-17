@@ -1,4 +1,5 @@
 const { Client } = require('pg');
+const { getSupabaseDbConfig } = require('./supabase-env');
 
 const regions = [
   'ap-southeast-1', // Singapore
@@ -20,15 +21,13 @@ const regions = [
 
 async function tryRegion(region) {
   const host = `aws-0-${region}.pooler.supabase.com`;
-  const client = new Client({
-    host: host,
-    port: 6543,
-    user: 'postgres.omlbtybplmeryoigwmac',
-    password: '1212312121',
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 2000
-  });
+  const client = new Client(
+    getSupabaseDbConfig({
+      host,
+      port: 6543,
+      connectionTimeoutMillis: 2000,
+    })
+  );
 
   try {
     await client.connect();
@@ -36,7 +35,7 @@ async function tryRegion(region) {
     await client.end();
     return true;
   } catch (err) {
-    if (err.message.includes('tenant/user postgres.omlbtybplmeryoigwmac not found')) {
+    if (err.message.includes(`tenant/user ${process.env.SUPABASE_DB_USER || 'postgres'} not found`)) {
       // Host reached, but user not here
       console.log(`${region}: User not found`);
     } else {

@@ -18,7 +18,16 @@ export function fingerprintSource(bytes) {
  * @returns {string}
  */
 export function fingerprintComparisonState(state) {
-  const canonical = JSON.stringify(state, Object.keys(state).sort());
+  // Deep clone so we can sort nested arrays without mutating the caller's state
+  const canonicalState = JSON.parse(JSON.stringify(state));
+  if (Array.isArray(canonicalState.players)) {
+    canonicalState.players.sort((a, b) => {
+      const aKey = a?.id ?? JSON.stringify(a);
+      const bKey = b?.id ?? JSON.stringify(b);
+      return String(aKey).localeCompare(String(bKey));
+    });
+  }
+  const canonical = JSON.stringify(canonicalState, Object.keys(canonicalState).sort());
   return crypto.createHash('sha256').update(canonical).digest('hex');
 }
 

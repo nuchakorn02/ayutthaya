@@ -49,9 +49,7 @@ export async function proxy(request: NextRequest) {
     const isLoginEndpoint = pathname === '/api/admin/login';
     
     // Whitelist: endpoints ที่เป็น public และต้องการ method พิเศษ
-    const isPublicEndpoint = [
-      '/api/players/[id]/history',
-    ].some((ep) => pathname.startsWith(ep));
+    const isPublicEndpoint = /^\/api\/players\/[^/]+\/history(\/.*)?$/.test(pathname);
 
     // ข้ามการเช็ค auth ถ้าเป็นหน้า Login หรือ Public
     if (isLoginEndpoint || isPublicEndpoint) {

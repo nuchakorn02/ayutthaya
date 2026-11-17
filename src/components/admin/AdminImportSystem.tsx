@@ -251,7 +251,7 @@ export default function AdminImportSystem({
                         const matchesSearch = log.player_name.toLowerCase().includes(sessionSearchQuery.toLowerCase());
                         if (!matchesSearch) return false;
                         
-                        const isNew = log.old_score === 0;
+                        const isNew = Boolean(log.is_new);
                         const isResigned = log.new_score === RETIRED_SCORE;
                         
                         if (sessionFilterType === 'new') return isNew && !isResigned;
@@ -284,7 +284,7 @@ export default function AdminImportSystem({
                             </thead>
                             <tbody>
                               {filteredLogs.map((log) => {
-                                const isNew = log.old_score === 0 && log.new_score !== RETIRED_SCORE;
+                                const isNew = Boolean(log.is_new);
                                 const isResigned = log.new_score === RETIRED_SCORE;
                                 const diffSign = log.score_diff > 0 ? '+' : '';
                                 

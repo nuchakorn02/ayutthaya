@@ -1,14 +1,13 @@
 const { Client } = require('pg');
+const { getSupabaseDbConfig } = require('./supabase-env');
 
 async function test(port) {
-  const client = new Client({
-    host: 'aws-0-eu-west-2.pooler.supabase.com',
-    port: port,
-    user: 'postgres.omlbtybplmeryoigwmac',
-    password: '1212312121',
-    database: 'postgres',
-    ssl: { rejectUnauthorized: false }
-  });
+  const client = new Client(
+    getSupabaseDbConfig({
+      host: 'aws-0-eu-west-2.pooler.supabase.com',
+      port,
+    })
+  );
 
   try {
     await client.connect();

@@ -12,6 +12,12 @@ test('fingerprintComparisonState is deterministic', () => {
   assert.equal(fingerprintComparisonState(state), fingerprintComparisonState(state));
 });
 
+test('fingerprintComparisonState is independent of player ordering', () => {
+  const ordered = { players: [{ id: 'a', score: 1 }, { id: 'b', score: 2 }] };
+  const reversed = { players: [{ id: 'b', score: 2 }, { id: 'a', score: 1 }] };
+  assert.equal(fingerprintComparisonState(ordered), fingerprintComparisonState(reversed));
+});
+
 test('confirmationContext rejects tampering and expiry', () => {
   const secret = 'super-secret';
   const now = Date.now();

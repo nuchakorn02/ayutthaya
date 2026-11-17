@@ -1,5 +1,6 @@
 const { Client } = require('pg');
 const dns = require('dns');
+const { getSupabaseDbConfig } = require('./supabase-env');
 
 const regions = [
   'ap-southeast-1', 'ap-southeast-2', 'ap-northeast-1', 'ap-northeast-2', 'ap-northeast-3', 'ap-south-1',
@@ -19,15 +20,13 @@ async function checkHost(region) {
       }
       
       // Try connecting
-      const client = new Client({
-        host: host,
-        port: 5432,
-        user: 'postgres.omlbtybplmeryoigwmac',
-        password: '1212312121',
-        database: 'postgres',
-        ssl: { rejectUnauthorized: false },
-        connectionTimeoutMillis: 3000
-      });
+      const client = new Client(
+        getSupabaseDbConfig({
+          host,
+          port: 5432,
+          connectionTimeoutMillis: 3000,
+        })
+      );
       
       try {
         await client.connect();
@@ -45,7 +44,10 @@ async function run() {
   results.forEach(res => {
     if (res.status === 'success') {
       console.log(`FOUND ACTIVE REGION: ${res.region}`);
-    } else if (res.status === 'conn_failed' && !res.error.includes('tenant/user postgres.omlbtybplmeryoigwmac not found')) {
+    } else if (
+      res.status === 'conn_failed' &&
+      !res.error.includes(`tenant/user ${process.env.SUPABASE_DB_USER || 'postgres'} not found`)
+    ) {
       console.log(`Region ${res.region} responded with different error: ${res.error}`);
     } else if (res.status === 'success' || res.status === 'conn_failed') {
       console.log(`Region ${res.region}: ${res.error}`);

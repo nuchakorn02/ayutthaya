@@ -17,8 +17,8 @@ export default function ExecutiveBoard({ players }: ExecutiveBoardProps) {
   // Helper to determine if we should show score
   const shouldShowScore = (position: string | null | undefined) => {
     if (!position) return false;
-    // Show score if position contains 'ผู้ช่วย' (Assistant)
-    return position.includes('ผู้ช่วย');
+    // Show score if position contains 'ผู้ช่วย' (Assistant) or 'ปลัด' (Palat)
+    return position.includes('ผู้ช่วย') || position.includes('ปลัด');
   };
 
   return (
@@ -63,6 +63,7 @@ export default function ExecutiveBoard({ players }: ExecutiveBoardProps) {
                   <div className={`relative h-12 w-12 rounded-full overflow-hidden border bg-white/5 flex-shrink-0 ${
                     isChief ? 'border-accent-gold shadow-[0_0_8px_rgba(251,191,36,0.3)]' : 'border-white/10'
                   }`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
                       alt={player.player_name}
