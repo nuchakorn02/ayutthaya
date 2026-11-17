@@ -14,11 +14,96 @@ export default function ExecutiveBoard({ players }: ExecutiveBoardProps) {
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
+  // Separate chief from subordinates for responsive layout
+  const chiefIndex = sortedPlayers.findIndex(
+    (p) => p.position?.includes('เจ้ากรม') && !p.position?.includes('รอง') && !p.position?.includes('ผู้ช่วย')
+  );
+  const chief = chiefIndex >= 0 ? sortedPlayers[chiefIndex] : null;
+  const subordinates = sortedPlayers.filter((_, idx) => idx !== chiefIndex);
+
   // Helper to determine if we should show score
   const shouldShowScore = (position: string | null | undefined) => {
     if (!position) return false;
     // Show score if position contains 'ผู้ช่วย' (Assistant) or 'ปลัด' (Palat)
     return position.includes('ผู้ช่วย') || position.includes('ปลัด');
+  };
+
+  const renderCard = (player: Player, index: number, isChiefCard: boolean) => {
+    const showScore = shouldShowScore(player.position);
+
+    return (
+      <div
+        key={player.id}
+        className={`glass-card p-5 relative overflow-hidden transition-all duration-300 hover:scale-105 flex flex-col justify-between
+          ${
+            isChiefCard
+              ? 'border-accent-gold/30 bg-accent-gold/5 shadow-[0_0_20px_rgba(212,175,55,0.1)] w-full max-w-md mx-auto'
+              : 'border-white/5 bg-white/[0.01] hover:border-accent-gold/20 w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.666rem)] max-w-sm'
+          }`}
+      >
+        {/* Top Decorative Line */}
+        <div className={`absolute top-0 left-0 w-full h-[2px] ${isChiefCard ? 'bg-gradient-to-r from-transparent via-accent-gold to-transparent' : 'bg-gradient-to-r from-transparent via-purple-500/50 to-transparent'}`} />
+
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div className="flex items-center gap-3 truncate">
+            {/* Roblox Avatar */}
+            <div className={`relative h-12 w-12 rounded-full overflow-hidden border bg-white/5 flex-shrink-0 ${
+              isChiefCard ? 'border-accent-gold shadow-[0_0_8px_rgba(251,191,36,0.3)]' : 'border-white/10'
+            }`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
+                alt={player.player_name}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+            <div className="truncate">
+              {/* Roblox Name */}
+              <h3 className="font-mono text-base font-bold text-text-primary truncate">
+                {player.player_name}
+              </h3>
+
+              {/* Position Badge */}
+              <p className={`text-xs font-semibold mt-1 ${isChiefCard ? 'text-accent-gold' : 'text-purple-300'}`}>
+                {player.position || 'คณะผู้บริหารส่วนกลาง'}
+              </p>
+            </div>
+          </div>
+
+          {/* Avatar Rank Stamp */}
+          <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm select-none flex-shrink-0
+            ${isChiefCard ? 'bg-accent-gold/15 text-accent-gold border border-accent-gold/20' : 'bg-white/5 text-text-secondary'}`}
+          >
+            {isChiefCard ? '🎖️' : `0${index + 1}`}
+          </div>
+        </div>
+
+        {/* Bottom Row - Score or Honor Tag */}
+        <div className="mt-4 border-t border-white/5 pt-3 flex items-center justify-between">
+          <span className="text-[10px] uppercase font-bold tracking-wider text-text-secondary/60">
+            {showScore ? 'แต้มผลงานกิจกรรม' : 'สถานะการประเมิน'}
+          </span>
+
+          {showScore ? (
+            <span className="font-mono text-base font-black text-accent-gold flex items-center gap-1">
+              <span className="text-xs font-medium text-text-secondary/80">แต้ม</span>
+              {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
+            </span>
+          ) : (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold border uppercase tracking-wider
+              ${
+                isChiefCard
+                  ? 'text-accent-gold bg-accent-gold/10 border-accent-gold/20'
+                  : 'text-purple-300 bg-purple-500/10 border-purple-500/25'
+              }`}
+            >
+              {isChiefCard ? '👑 บัญชาการสูงสุด' : '✨ บอร์ดเกียรติยศ'}
+            </span>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -38,86 +123,15 @@ export default function ExecutiveBoard({ players }: ExecutiveBoardProps) {
         </div>
       </div>
 
-      {/* Grid of Executive Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 justify-center max-w-4xl mx-auto">
-        {sortedPlayers.map((player, index) => {
-          const showScore = shouldShowScore(player.position);
-          const isChief = player.position?.includes('เจ้ากรม') && !player.position?.includes('รอง') && !player.position?.includes('ผู้ช่วย');
-          
-          return (
-            <div
-              key={player.id}
-              className={`glass-card p-5 relative overflow-hidden transition-all duration-300 hover:scale-105 flex flex-col justify-between
-                ${
-                  isChief 
-                    ? 'border-accent-gold/30 bg-accent-gold/5 shadow-[0_0_20px_rgba(212,175,55,0.1)] col-span-1 sm:col-span-2 md:col-span-3 max-w-md mx-auto w-full'
-                    : 'border-white/5 bg-white/[0.01] hover:border-accent-gold/20'
-                }`}
-            >
-              {/* Top Decorative Line */}
-              <div className={`absolute top-0 left-0 w-full h-[2px] ${isChief ? 'bg-gradient-to-r from-transparent via-accent-gold to-transparent' : 'bg-gradient-to-r from-transparent via-purple-500/50 to-transparent'}`} />
+      {/* Executive Cards Layout */}
+      <div className="flex flex-col items-center gap-4 max-w-4xl mx-auto">
+        {chief && renderCard(chief, 0, true)}
 
-              <div className="flex items-start justify-between gap-4 mb-3">
-                <div className="flex items-center gap-3 truncate">
-                  {/* Roblox Avatar */}
-                  <div className={`relative h-12 w-12 rounded-full overflow-hidden border bg-white/5 flex-shrink-0 ${
-                    isChief ? 'border-accent-gold shadow-[0_0_8px_rgba(251,191,36,0.3)]' : 'border-white/10'
-                  }`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/roblox/avatar/${encodeURIComponent(player.player_name)}`}
-                      alt={player.player_name}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                  <div className="truncate">
-                    {/* Roblox Name */}
-                    <h3 className="font-mono text-base font-bold text-text-primary truncate">
-                      {player.player_name}
-                    </h3>
-                    
-                    {/* Position Badge */}
-                    <p className={`text-xs font-semibold mt-1 ${isChief ? 'text-accent-gold' : 'text-purple-300'}`}>
-                      {player.position || 'คณะผู้บริหารส่วนกลาง'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Avatar Rank Stamp */}
-                <div className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm select-none flex-shrink-0
-                  ${isChief ? 'bg-accent-gold/15 text-accent-gold border border-accent-gold/20' : 'bg-white/5 text-text-secondary'}`}
-                >
-                  {isChief ? '🎖️' : `0${index + 1}`}
-                </div>
-              </div>
-
-              {/* Bottom Row - Score or Honor Tag */}
-              <div className="mt-4 border-t border-white/5 pt-3 flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-text-secondary/60">
-                  {showScore ? 'แต้มผลงานกิจกรรม' : 'สถานะการประเมิน'}
-                </span>
-
-                {showScore ? (
-                  <span className="font-mono text-base font-black text-accent-gold flex items-center gap-1">
-                    <span className="text-xs font-medium text-text-secondary/80">แต้ม</span>
-                    {player.total_score.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}
-                  </span>
-                ) : (
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold border uppercase tracking-wider
-                    ${
-                      isChief
-                        ? 'text-accent-gold bg-accent-gold/10 border-accent-gold/20'
-                        : 'text-purple-300 bg-purple-500/10 border-purple-500/25'
-                    }`}
-                  >
-                    {isChief ? '👑 บัญชาการสูงสุด' : '✨ บอร์ดเกียรติยศ'}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {subordinates.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-4 w-full">
+            {subordinates.map((player, index) => renderCard(player, index, false))}
+          </div>
+        )}
       </div>
     </section>
   );
