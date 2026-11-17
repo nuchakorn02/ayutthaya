@@ -18,6 +18,12 @@ test('fingerprintComparisonState is independent of player ordering', () => {
   assert.equal(fingerprintComparisonState(ordered), fingerprintComparisonState(reversed));
 });
 
+test('fingerprintComparisonState is independent of object key ordering', () => {
+  const a = { players: [{ id: 'x', score: 5, name: 'A' }] };
+  const b = { players: [{ name: 'A', id: 'x', score: 5 }] };
+  assert.equal(fingerprintComparisonState(a), fingerprintComparisonState(b));
+});
+
 test('confirmationContext rejects tampering and expiry', () => {
   const secret = 'super-secret';
   const now = Date.now();

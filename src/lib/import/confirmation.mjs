@@ -12,22 +12,52 @@ export function fingerprintSource(bytes) {
 }
 
 /**
+ * Recursively canonicalize a value so that object key ordering and array
+ * ordering do not affect the resulting fingerprint.
+ *
+ * @param {unknown} value
+ * @returns {unknown}
+ */
+function canonicalize(value) {
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    const sorted = value.map(canonicalize).sort((a, b) => {
+      // Sort arrays of objects by a stable id key when available.
+      if (
+        a !== null &&
+        b !== null &&
+        typeof a === 'object' &&
+        typeof b === 'object' &&
+        !Array.isArray(a) &&
+        !Array.isArray(b) &&
+        'id' in a &&
+        'id' in b
+      ) {
+        return String(a.id).localeCompare(String(b.id));
+      }
+      return JSON.stringify(a).localeCompare(JSON.stringify(b));
+    });
+    return sorted;
+  }
+
+  const sorted = {};
+  for (const key of Object.keys(value).sort()) {
+    sorted[key] = canonicalize(value[key]);
+  }
+  return sorted;
+}
+
+/**
  * Compute a deterministic fingerprint of the comparison state.
  *
  * @param {unknown} state
  * @returns {string}
  */
 export function fingerprintComparisonState(state) {
-  // Deep clone so we can sort nested arrays without mutating the caller's state
-  const canonicalState = JSON.parse(JSON.stringify(state));
-  if (Array.isArray(canonicalState.players)) {
-    canonicalState.players.sort((a, b) => {
-      const aKey = a?.id ?? JSON.stringify(a);
-      const bKey = b?.id ?? JSON.stringify(b);
-      return String(aKey).localeCompare(String(bKey));
-    });
-  }
-  const canonical = JSON.stringify(canonicalState, Object.keys(canonicalState).sort());
+  const canonical = JSON.stringify(canonicalize(state));
   return crypto.createHash('sha256').update(canonical).digest('hex');
 }
 
