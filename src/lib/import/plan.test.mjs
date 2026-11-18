@@ -43,6 +43,24 @@ test('buildImportPlan reports new, update, and retire actions', () => {
   assert.equal(retireRow.player_name, 'Charlie');
 });
 
+test('buildImportPlan preserves position from parsed rows', () => {
+  const existing = [makePlayer('Alice', 'กองทัพมหาเสือพิทักษ์', 100)];
+  const parsed = [
+    { player_name: 'Alice', division: 'กองทัพมหาเสือพิทักษ์', total_score: 150, position: 'ผู้บังคับหมู่', source_row: 2, raw_score: 150 },
+    { player_name: 'Bob', division: 'กองทัพมหาเสือพิทักษ์', total_score: 50, position: 'ทหารใหม่', source_row: 3, raw_score: 50 },
+  ];
+
+  const plan = buildImportPlan(parsed, existing, VALID_DIVISIONS);
+
+  const updateRow = plan.rows.find((r) => r.action === 'update');
+  assert.ok(updateRow);
+  assert.equal(updateRow.position, 'ผู้บังคับหมู่');
+
+  const newRow = plan.rows.find((r) => r.action === 'new');
+  assert.ok(newRow);
+  assert.equal(newRow.position, 'ทหารใหม่');
+});
+
 test('buildImportPlan rejects invalid scores and divisions', () => {
   const parsed = [
     { player_name: 'Alice', division: 'กองทัพมหาเสือพิทักษ์', total_score: null, position: '', source_row: 2, raw_score: 'abc' },

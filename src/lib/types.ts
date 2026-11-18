@@ -72,6 +72,7 @@ export interface ImportPreviewRow {
   current_score: number | null;
   proposed_score: number | null;
   score_diff: number | null;
+  position?: string;
   message?: string;
 }
 

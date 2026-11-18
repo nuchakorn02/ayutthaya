@@ -109,6 +109,7 @@ export function buildImportPlan(parsedRows, existingPlayers, validDivisions) {
         current_score: null,
         proposed_score: score,
         score_diff: score,
+        position: parsed.position || undefined,
       });
       counts.new++;
     } else {
@@ -128,6 +129,7 @@ export function buildImportPlan(parsedRows, existingPlayers, validDivisions) {
           current_score: currentScore,
           proposed_score: score,
           score_diff: 0,
+          position: parsed.position || undefined,
         });
       } else {
         rows.push({
@@ -139,6 +141,7 @@ export function buildImportPlan(parsedRows, existingPlayers, validDivisions) {
           current_score: currentScore,
           proposed_score: score,
           score_diff: scoreDiff,
+          position: parsed.position || undefined,
         });
         counts.updated++;
       }
@@ -157,6 +160,7 @@ export function buildImportPlan(parsedRows, existingPlayers, validDivisions) {
           current_score: p.total_score,
           proposed_score: RETIRED_SCORE,
           score_diff: null,
+          position: p.position || undefined,
         });
         counts.retired++;
       }
